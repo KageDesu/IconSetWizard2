@@ -1,164 +1,153 @@
-# IconSet Wizard 2 — 1.0
+# IconSet Wizard 2
 
-Rust + egui/eframe, OpenGL (`glow`), нативные файловые диалоги `rfd`.
-Интерфейс на английском, русском и упрощённом китайском оформлен по образцу React-версии: тёмная тема,
-панель документа слева, полотно в центре и редактор слоёв справа.
-Windows-сборка находится в
-`dist/IconSetWizard2.exe`; Rust или .NET конечному пользователю не нужны.
+A free, open-source desktop editor for game icon sets. Combine images into layered icons, adjust their appearance, and export a PNG atlas ready for your game.
 
-## Запуск
+IconSet Wizard 2 works with 32 × 32 icons arranged in a 16-column atlas. It is useful for assembling item, skill, equipment, and interface icons without editing every variation by hand.
 
-Запустите `dist/IconSetWizard2.exe`, нажмите **Открыть** и выберите PNG.
-Если атлас уже открыт, перетаскивание PNG добавляет его новым слоем в выбранную
-иконку (можно перетащить несколько файлов). Чтобы заменить весь атлас, используйте
-**Открыть**. Если документа ещё нет, перетаскивание PNG открывает атлас.
-Перетаскивание проекта `.isw2` открывает проект.
-Если рядом с exe лежит `IconSet.png`, он откроется автоматически.
-Также PNG можно передать первым аргументом командной строки.
-При запуске из корня исходников открывается имеющийся здесь `IconSet.png`.
+**[Download & installation](#download--installation)** · **[Build from source](#build-from-source)** · **[MIT license](LICENSE)**
 
-## Язык интерфейса
+## Screenshot
 
-В правом верхнем углу находится меню **Language / Язык / 语言**:
-**English**, **Русский**, **简体中文**. Переключение применяется сразу и сохраняется
-между запусками. При первом запуске язык интерфейса Windows определяется через
-`GetUserDefaultUILanguage`: русский и китайский включаются автоматически,
-для остальных языков или при невозможности определения используется английский.
-На других платформах проверяются переменные локали `LC_ALL`, `LC_MESSAGES`,
-`LANGUAGE`, `LANG`. Китайский использует встроенный Noto Sans CJK SC (SIL OFL),
-поэтому установка дополнительных шрифтов не требуется.
-Имена пользовательских слоёв и описания сторонних пакетов сохраняются как есть.
-Стандартные элементы системных файловых диалогов используют язык ОС.
-Для проверки языка без изменения настроек можно запустить программу с переменной
-окружения `ISW_LANGUAGE=en`, `ru` или `zh`.
+![IconSet Wizard 2 with an icon atlas and selected icon preview](docs/images/screenshot.png)
 
-## О программе
+## Features
 
-Кнопка **About / О программе / 关于** находится справа вверху.
-Окно показывает версию **1.0**, автора Phoenix KageDesu и три кнопки-иконки:
-сайт автора, YouTube и Boosty. Название ресурса показывается при наведении;
-нажатие открывает ссылку в браузере. Адреса не выводятся в интерфейсе.
-Окно закрывается кнопкой, крестиком или Escape.
+- **Layered icons:** import PNG images, combine them in a cell, duplicate layers, and rearrange their order.
+- **Live adjustments:** move, rotate, scale, flip, recolor, and change the opacity of layers with an immediate preview. Keep crisp pixels or enable smoothing.
+- **Batch editing:** select groups of icons, copy, cut, paste, or clear them. Copying groups preserves their arrangement and works between application windows.
+- **Icon library:** browse the included `.iwpk` packages, search by package name, description, or icon number, and bookmark favorites.
+- **Flexible export:** export the full atlas or save selected icons as individual PNG files.
+- **Editable projects:** save layers and adjustments in `.isw2` projects and return to them later.
+- **Undo and recovery:** undo or redo edits, use automatic saving, and recover work after an unexpected shutdown.
+- **Three interface languages:** English, Russian, and Simplified Chinese, switchable from the Language menu.
 
-В боковых панелях для вертикальных полос прокрутки зарезервировано отдельное
-место с отступом 10 px от содержимого. Ширина панелей увеличена, чтобы сохранить
-пространство для элементов управления.
+## Download & Installation
 
-## Возможности
+1. Open this repository's **[Releases](../../releases)** page.
+2. Download the latest release archive for your platform, when available. Choose the application archive from **Assets**, rather than GitHub's automatically generated source archives.
+3. Extract the entire archive to a folder of your choice.
+4. On Windows, run **`IconSetWizard2.exe`**. No installer, Rust toolchain, or .NET runtime is required.
 
-- Iconset: 512 px шириной, 16 колонок, ячейки 32×32, до 256 полных рядов.
-- Каждая исходная иконка импортируется отдельным слоем в своей ячейке.
-- Прокрутка, масштаб 0.5–4×, сетка, фон прозрачности, индексы от нуля.
-- Выбор ячейки и увеличенный просмотр с nearest-neighbor.
-- Импорт PNG в новый слой; изображения другого размера растягиваются
-  до 32×32 с nearest-neighbor.
-- Библиотека старых `.iwpk`: категории, описания, миниатюры и вставка новым слоем.
-  Папка `packages` рядом с EXE загружается при открытии библиотеки. Можно выбрать
-  другую папку и обновить список. В комплекте 10 пакетов пользователя, 1881 иконка.
-- Поиск библиотеки фильтрует название пакета, описание и номер иконки; можно
-  искать во всех пакетах или в текущей категории. Звёздочка на миниатюре добавляет
-  её в избранное; «Только избранное» показывает любимые иконки из всех пакетов.
-  Избранное и выбранная папка библиотеки сохраняются между запусками.
-- **Заменить PNG** меняет картинку текущего слоя, сохраняя имя, позицию в списке
-  и все настройки преобразований.
-- Слои: имя, видимость, прозрачность, целочисленное смещение,
-  поворот с шагом 1° и кнопками 0/90/180/270°, масштаб содержимого 0.1–4×,
-  Hue −180…180°, отражения по X/Y и порядок наложения.
-- По умолчанию преобразования выполняются без сглаживания. Опциональное
-  сглаживание использует билинейную выборку с учётом альфы, без тёмных ореолов.
-  При произвольных углах nearest-neighbor может менять рисунок одиночных пикселей;
-  повороты кратно 90° сохраняют пиксельную сетку точно.
-- Предпросмотр параметров сразу виден на полотне и в увеличенной иконке.
-- Изменения свойств применяются кнопкой **Применить** как одна
-  операция Undo. Есть сброс неприменённых изменений. Выбор другой иконки/слоя
-  фиксирует неприменённые параметры. Сохранение, экспорт и импорт слоя применяют
-  текущие параметры перед выполнением операции.
-- Удаление слоя, копирование всей иконки и вставка с заменой, добавление ряда.
-- Групповое выделение: Ctrl+клик добавляет/убирает ячейку, Shift+клик выделяет
-  прямоугольник от предыдущей опорной ячейки, протягивание мышью выделяет область.
-  Ctrl при протягивании добавляет область к текущей группе. Обычный клик выбирает
-  одну ячейку. Ctrl+A выбирает весь атлас; Delete очищает выбранные ячейки.
-- Ctrl+C / Ctrl+V копируют и вставляют всю группу со слоями и сохраняют её форму;
-  точка вставки — выбранная ячейка. Группа должна целиком помещаться в атлас.
-  Если скопирована одна иконка, она вставляется во все выделенные ячейки.
-  Ctrl+X вырезает выделение; копирование групп работает и между окнами программы.
-- **Дубликат слоя** создаёт копию над текущим слоем со всеми настройками.
-  Слои можно перетаскивать в списке для смены порядка или на другую ячейку полотна.
-- **Замена цвета**: исходный цвет из палитры слоя или RGB-редактора, новый цвет,
-  допуск 0–64 и предпросмотр. Меняется текущий слой либо все слои выделенных ячеек;
-  исходная альфа сохраняется, полностью прозрачные пиксели пропускаются.
-  Замена применяется к исходным цветам до Hue, одна операция Undo.
-- **Экспорт ячеек** сохраняет выбранные иконки как отдельные PNG 32×32 в выбранную
-  папку, например `icon_0001.png`. Для существующих файлов запрашивается подтверждение.
-- Undo/Redo: 64 изменения; исходные пиксели слоёв разделяются между снимками
-  через `Arc`, а преобразования не изменяют их.
-- **Сохранить проект** сохраняет слои и настройки в `.isw2`.
-- **Экспорт PNG** создаёт объединённый PNG для игры. Экспорт не сохраняет слои
-  и не снимает признак несохранённого проекта.
-- **Сохранить Tileset** в верхней панели перезаписывает открытый PNG после
-  подтверждения. В диалоге показан полный путь; «Отмена» и Escape оставляют файл
-  без изменений. Кнопка доступна, когда в этой сессии был открыт PNG-атлас,
-  и сохраняет его путь даже после сохранения проекта `.isw2`.
-- Опция **Перезаписывать исходный PNG** обновляет открытый PNG при экспорте
-  без диалога выбора пути. Выключена по умолчанию; доступна после открытия PNG,
-  сохраняет исходный путь и при последующем сохранении проекта в этой сессии.
-- Подтверждение закрытия и замены изменённого документа.
-- Запись через временный файл в той же папке с последующим переименованием.
-- Автосохранение включено по умолчанию: раз в 30 секунд сохраняет изменённый
-  проект со слоями, текущей ячейкой/слоем и неприменёнными параметрами. Оно не
-  перезаписывает исходный PNG или основной проект и не сбрасывает признак изменений.
-  После сбоя при запуске предлагается восстановление; его можно отложить кнопкой
-  «Позже» и открыть позднее из панели документа. Сохранение проекта или явное
-  закрытие без сохранения удаляет соответствующую аварийную копию.
-  Каждое окно использует отдельную копию и файловую блокировку, поэтому копии
-  работающих окон не предлагаются к восстановлению.
-  В Windows настройки и копии находятся в `%LOCALAPPDATA%/IconSetWizard2`.
+Release archives include a **`packages`** folder with the icon library. Keep it next to the executable so the application can find it automatically. You can also choose another library folder from within the application.
 
-Горячие клавиши: Ctrl+O — открыть, Ctrl+S — сохранить проект,
-Ctrl+Z — Undo, Ctrl+Y / Ctrl+Shift+Z — Redo, Ctrl+C / Ctrl+V — копировать/вставить иконку.
-На macOS используется Command.
-При вводе текста в поля горячие клавиши оставлены самому полю.
-Копирование ячейки обрабатывает нативные события Copy/Paste и помещает данные
-всех слоёв в системный буфер, поэтому вставка работает и между окнами программы.
+Windows is the current distribution platform. Linux and macOS builds and application packaging have not yet been verified; see [Build from source](#build-from-source) if you want to try building for your system.
 
-## Ограничения
+## Quick Start
 
-Здесь пока нет пиксельных кистей. Пустые слои без файла и автоматическое добавление рядов
-не реализованы; ряды добавляются вручную.
-Проект `.isw2` — версионированный JSON с RGBA-данными, без ZIP-сжатия;
-он может быть значительно больше PNG. Для следующей версии планируется
-контейнер с PNG-ресурсами. Ограничение проекта: 64 MB исходных пикселей,
-128 слоёв на ячейку, файл проекта до 128 MB.
-Новые проекты имеют версию формата 2; проекты версии 1 читаются с нейтральными
-значениями новых параметров. Для открытия новых проектов нужна обновлённая программа.
+1. Click **Open** and choose a PNG icon atlas, or open an existing `.isw2` project.
+2. Select an icon on the canvas. Use the zoom control and enlarged preview to inspect it.
+3. Add a PNG layer or choose an icon from the **Library**. You can also drag PNG files onto the window to add layers to the selected icon.
+4. Adjust the layers and click **Apply** to commit your changes. Add rows when you need more space.
+5. Click **Save project** to preserve your layers and settings in an `.isw2` file.
+6. Click **Export PNG** to create the finished atlas for your game, or **Export cells** to save selected icons individually.
 
-Полноценные Linux/macOS-сборки и упаковка в AppImage/.app пока не проверены.
-На Linux файловые диалоги используют XDG Desktop Portal / Zenity;
-для окна нужны системные графические библиотеки и драйвер OpenGL.
-В Windows все ресурсы интерфейса встроены в exe, CRT подключён статически.
-Демо-PNG — пользовательский документ, поэтому не встроен в программу.
+**Projects preserve your work; PNG exports contain the finished image.** Exporting a PNG does not save an editable project. To update the PNG you originally opened, use **Save Tileset**, which asks for confirmation before overwriting it.
 
-## Разработка
+When no document is open, dropping a PNG opens it as an atlas. To replace an already open atlas, use **Open**. Dropping an `.isw2` file opens that project.
 
-```powershell
-cargo run
-cargo test
-cargo clippy --all-targets -- -D warnings
-cargo build --release
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| Ctrl+O | Open an atlas or project |
+| Ctrl+S | Save the project |
+| Ctrl+Z | Undo |
+| Ctrl+Y or Ctrl+Shift+Z | Redo |
+| Ctrl+C / Ctrl+X / Ctrl+V | Copy / cut / paste selected icons |
+| Ctrl+A | Select all icons |
+| Delete | Clear selected cells |
+| Ctrl+click | Add or remove a cell from the selection |
+| Shift+click | Select a rectangular area |
+| Drag across cells | Select an area |
+| Ctrl+drag | Add an area to the selection |
+
+On macOS, use **Command** instead of Ctrl. When a text field is active, editing shortcuts apply to that field.
+
+## Supported Formats & Limitations
+
+| Format | Purpose |
+| --- | --- |
+| `.png` | Open or export icon atlases; import layer images; export individual icons |
+| `.isw2` | Save and reopen editable projects with layers and adjustments |
+| `.iwpk` | Load icon packages from the original IconSet Wizard |
+
+- Atlases use **32 × 32 cells**, **16 columns**, and a **512 px width**, with up to **256 rows**.
+- Imported layer images are resized to fit a 32 × 32 cell.
+- This is an icon composition editor; pixel painting brushes are not included.
+- Extra rows are added manually. A pasted group must fit within the atlas.
+- The application needs a graphical desktop and an OpenGL-capable graphics driver.
+
+## Build from Source
+
+Build on the platform you want to run the application on. The instructions below produce a native executable; Linux and macOS support is currently unverified.
+
+### Prerequisites
+
+Install **Git** and the latest stable **Rust** toolchain with Cargo using the [official Rust installation instructions](https://rust-lang.org/tools/install/).
+
+- **Windows:** install Visual Studio Build Tools with the **Desktop development with C++** workload and a Windows SDK. Use Rust's MSVC toolchain.
+- **macOS:** install Apple's command-line development tools:
+
+  ```sh
+  xcode-select --install
+  ```
+
+- **Linux:** install a C/C++ toolchain and the desktop development libraries. For Ubuntu/Debian, a starting point is:
+
+  ```sh
+  sudo apt update
+  sudo apt install build-essential pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libwayland-dev libx11-dev libxi-dev libxrandr-dev libgl1-mesa-dev
+  ```
+
+  Package names vary by distribution. File dialogs use XDG Desktop Portal; your desktop session needs a working portal backend, or Zenity as a fallback. See the upstream [eframe Linux requirements](https://github.com/emilk/egui/tree/main/crates/eframe#readme) and [rfd Linux backend documentation](https://github.com/PolyMeilex/rfd#linux--bsd-backends).
+
+### Compile and Run
+
+Replace `YOUR-USERNAME/YOUR-REPOSITORY` with this project's GitHub repository path:
+
+```sh
+git clone https://github.com/YOUR-USERNAME/YOUR-REPOSITORY.git IconSetWizard2
+cd IconSetWizard2
+cargo build --release --locked
 ```
 
-`Cargo.lock` фиксирует зависимости. Исходники:
-`src/document.rs` — модель слоёв, PNG и композиция RGBA;
-`src/main.rs` — история изменений и файловые операции;
-`src/ui.rs` — тема, векторные иконки, панели, редактор слоёв и окно библиотеки;
-`src/library.rs` — совместимый декодер старых пакетов `.iwpk`.
-`src/editor.rs` — групповые операции, цвета, экспорт ячеек, избранное и восстановление;
-`src/storage.rs` — пользовательские настройки, аварийные копии и блокировки сессий.
+The executable is created here:
 
-Тесты проверяют альфа-композицию, видимость, обрезку и неразрушающие
-преобразования, JSON roundtrip, точное совпадение экспорта исходного
-`IconSet.png`, Undo/Redo, замену файла и построение интерфейса при двух
-размерах окна. Отдельный UI-тест кликает «Применить» и «Отменить» и
-проверяет сохранность исходных пикселей. Снимки настоящего окна:
-`dist/interface-rust.png` и `dist/interface-rust-minimum.png`.
-Системные диалоги полностью вручную не проверялись.
+| Platform | Output |
+| --- | --- |
+| Windows | `target/release/iconset-wizard.exe` |
+| Linux / macOS | `target/release/iconset-wizard` |
+
+Run it on Windows (PowerShell):
+
+```powershell
+.\target\release\iconset-wizard.exe
+```
+
+Run it on Linux or macOS:
+
+```sh
+./target/release/iconset-wizard
+```
+
+To build and launch directly through Cargo:
+
+```sh
+cargo run --release --locked
+```
+
+The source checkout does not include the bundled icon packages. To use the release library with your own build, extract `packages` from a release archive and place it beside the executable, or select that folder in the application's Library window.
+
+## Feedback & Contributions
+
+Bug reports, feature suggestions, and pull requests are welcome through this repository's **Issues** and **Pull requests** tabs. For a bug report, include your operating system, application version, and steps to reproduce the problem.
+
+## License & Credits
+
+Created by **Phoenix KageDesu** — [KD Workshop](https://kdworkshop.net/).
+
+IconSet Wizard 2 is open source and licensed under the **[MIT License](LICENSE)**.
+
+The embedded **Noto Sans CJK SC** font is licensed under the **SIL Open Font License 1.1**; see [the font license](assets/fonts/LICENSE). Release distributions include it as `NotoSansCJK-LICENSE.txt`.
+
+The MIT license covers the application source code. Bundled icon artwork and third-party packages remain subject to their respective authors' licenses and usage terms.
