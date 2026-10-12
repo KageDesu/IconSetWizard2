@@ -9,6 +9,8 @@ use std::{
 #[derive(Default, Serialize, Deserialize)]
 pub struct Preferences {
     #[serde(default)]
+    pub language: Option<crate::i18n::Language>,
+    #[serde(default)]
     pub favorites: BTreeSet<String>,
     #[serde(default)]
     pub library_folder: Option<PathBuf>,
@@ -44,7 +46,7 @@ pub fn load_preferences(root: &Path) -> Result<Preferences, String> {
         return Ok(Preferences::default());
     }
     if std::fs::metadata(&path).map_err(|e| e.to_string())?.len() > 4 * 1024 * 1024 {
-        return Err("Файл настроек слишком большой".into());
+        return Err(crate::i18n::tr("Файл настроек слишком большой").into());
     }
     serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())
@@ -60,13 +62,13 @@ pub fn save_preferences(root: &Path, preferences: &Preferences) -> Result<(), St
 
 pub fn read_recovery(path: &Path) -> Result<Recovery, String> {
     if std::fs::metadata(path).map_err(|e| e.to_string())?.len() > 128 * 1024 * 1024 {
-        return Err("Копия превышает 128 MB".into());
+        return Err(crate::i18n::tr("Копия превышает 128 MB").into());
     }
     let snapshot: Recovery =
         serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
     if snapshot.version != 1 {
-        return Err("Неизвестный формат копии".into());
+        return Err(crate::i18n::tr("Неизвестный формат копии").into());
     }
     snapshot.document.validate()?;
     Ok(snapshot)
@@ -93,13 +95,15 @@ pub fn recovery_description(path: &Path) -> String {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|t| t.as_secs())
             .unwrap_or(info.saved_at);
-        format!(
+        crate::tf!(
             "{} · {} мин. назад",
+            "{} · {} min. ago",
+            "{} · {}分钟前",
             info.name,
             now.saturating_sub(info.saved_at) / 60
         )
     } else {
-        "Проект без описания".into()
+        crate::i18n::tr("Проект без описания").into()
     }
 }
 
@@ -128,7 +132,7 @@ impl RecoveryStore {
         snapshot.document.validate()?;
         let bytes = serde_json::to_vec(snapshot).map_err(|e| e.to_string())?;
         if bytes.len() > 128 * 1024 * 1024 {
-            return Err("Автосохранение превышает 128 MB".into());
+            return Err(crate::i18n::tr("Автосохранение превышает 128 MB").into());
         }
         atomic_write(&self.path, &bytes)?;
         let info = RecoveryInfo {
@@ -137,7 +141,7 @@ impl RecoveryStore {
                 .as_ref()
                 .and_then(|p| p.file_name())
                 .map(|s| s.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "Новый Iconset".into()),
+                .unwrap_or_else(|| crate::i18n::tr("Новый Iconset").into()),
             saved_at: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|t| t.as_secs())

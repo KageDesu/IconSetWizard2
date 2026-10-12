@@ -2,6 +2,7 @@
 
 mod document;
 mod editor;
+mod i18n;
 mod library;
 mod storage;
 mod ui;
@@ -10,12 +11,14 @@ use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, TextureHandle, Vec2
 use std::path::{Path, PathBuf};
 
 struct Wizard {
+    language: i18n::Language,
     doc: Document,
     source: Option<PathBuf>,
     png_source: Option<PathBuf>,
     document_open: bool,
     overwrite_png: bool,
     library_open: bool,
+    about_open: bool,
     library_folder: PathBuf,
     packages: Vec<library::Package>,
     library_category: usize,
@@ -74,14 +77,28 @@ fn blank() -> Document {
 }
 
 fn draft_for(doc: &Document, selected: usize, layer: usize) -> Layer {
-    doc.tiles[selected]
-        .get(layer)
-        .cloned()
-        .unwrap_or_else(|| Layer::new("Слой".into(), image::RgbaImage::new(CELL, CELL)))
+    doc.tiles[selected].get(layer).cloned().unwrap_or_else(|| {
+        Layer::new(
+            crate::i18n::tr("Слой").into(),
+            image::RgbaImage::new(CELL, CELL),
+        )
+    })
 }
 
 impl Wizard {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let saved = if std::env::var_os("ISW_SCREENSHOT_PATH").is_none() {
+            storage::load_preferences(&storage::root())
+                .ok()
+                .and_then(|p| p.language)
+        } else {
+            None
+        };
+        let language = std::env::var("ISW_LANGUAGE")
+            .ok()
+            .map(|locale| i18n::Language::from_locale(&locale))
+            .unwrap_or_else(|| i18n::Language::startup(saved));
+        i18n::set_language(language);
         ui::configure(&cc.egui_ctx);
         let argument = std::env::args_os().nth(1).map(PathBuf::from);
         let nearby = std::env::current_exe()
@@ -99,14 +116,14 @@ impl Wizard {
                 Ok(doc) => (
                     doc,
                     Some(path),
-                    "Iconset открыт. Выберите ячейку для редактирования.".into(),
+                    crate::i18n::tr("Iconset открыт. Выберите ячейку для редактирования.").into(),
                 ),
                 Err(error) => (blank(), None, error),
             },
             None => (
                 blank(),
                 None,
-                "Откройте PNG или перетащите проект на окно.".into(),
+                crate::i18n::tr("Откройте PNG или перетащите проект на окно.").into(),
             ),
         };
         let mut wizard = Self::from_document(doc, source, status);
@@ -114,6 +131,7 @@ impl Wizard {
             wizard.initialize_storage(storage::root());
         }
         if std::env::var_os("ISW_SCREENSHOT_PATH").is_some() {
+            wizard.about_open = std::env::var_os("ISW_SCREENSHOT_ABOUT").is_some();
             cc.egui_ctx
                 .all_styles_mut(|style| style.animation_time = 0.0);
             wizard.selected = 1.min(wizard.doc.tiles.len() - 1);
@@ -174,12 +192,14 @@ impl Wizard {
             .filter(|p| p.is_dir())
             .unwrap_or_else(|| PathBuf::from("packages"));
         Self {
+            language: i18n::current(),
             doc,
             source,
             png_source,
             document_open,
             overwrite_png: false,
             library_open: false,
+            about_open: false,
             library_folder,
             packages: vec![],
             library_category: 0,
@@ -283,8 +303,10 @@ impl Wizard {
     fn may_replace(&self) -> bool {
         !(self.dirty || self.has_pending_draft())
             || rfd::MessageDialog::new()
-                .set_title("Несохранённый проект")
-                .set_description("Отменить изменения и открыть другой документ?")
+                .set_title(crate::i18n::tr("Несохранённый проект"))
+                .set_description(crate::i18n::tr(
+                    "Отменить изменения и открыть другой документ?",
+                ))
                 .set_buttons(rfd::MessageButtons::YesNo)
                 .show()
                 == rfd::MessageDialogResult::Yes
@@ -299,7 +321,7 @@ impl Wizard {
                 .map_err(|e| e.to_string())
                 .and_then(|meta| {
                     if meta.len() > 128 * 1024 * 1024 {
-                        return Err("Файл проекта слишком большой.".into());
+                        return Err(crate::i18n::tr("Файл проекта слишком большой.").into());
                     }
                     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
                     let doc: Document =
@@ -330,15 +352,21 @@ impl Wizard {
                 self.redo.clear();
                 self.dirty = false;
                 self.sync();
-                self.status = "Документ открыт.".into();
+                self.status = crate::i18n::tr("Документ открыт.").into();
             }
-            Err(error) => self.status = format!("Ошибка открытия: {error}"),
+            Err(error) => {
+                self.status = crate::tf!(
+                    "Ошибка открытия: {error}",
+                    "Open error: {error}",
+                    "打开错误：{error}"
+                )
+            }
         }
     }
 
     fn open_dialog(&mut self) {
         if let Some(path) = rfd::FileDialog::new()
-            .add_filter("Iconset / проект", &["png", "isw2"])
+            .add_filter(crate::i18n::tr("Iconset / проект"), &["png", "isw2"])
             .pick_file()
         {
             self.open(path);
@@ -347,7 +375,7 @@ impl Wizard {
 
     fn save_project(&mut self) -> bool {
         let Some(path) = rfd::FileDialog::new()
-            .add_filter("Проект Wizard", &["isw2"])
+            .add_filter(crate::i18n::tr("Проект Wizard"), &["isw2"])
             .set_file_name("IconSet.isw2")
             .save_file()
         else {
@@ -364,11 +392,20 @@ impl Wizard {
                 self.clear_recovery();
                 self.dirty = false;
                 self.source = Some(path.clone());
-                self.status = format!("Проект сохранён: {}", path.display());
+                self.status = crate::tf!(
+                    "Проект сохранён: {}",
+                    "Project saved: {}",
+                    "项目已保存：{}",
+                    path.display()
+                );
                 true
             }
             Err(error) => {
-                self.status = format!("Ошибка сохранения: {error}");
+                self.status = crate::tf!(
+                    "Ошибка сохранения: {error}",
+                    "Save error: {error}",
+                    "保存错误：{error}"
+                );
                 false
             }
         }
@@ -406,11 +443,17 @@ impl Wizard {
             .map_err(|e| e.to_string())
             .and_then(|()| atomic_write(path, &bytes.into_inner()));
         self.status = match result {
-            Ok(()) => format!(
+            Ok(()) => crate::tf!(
                 "PNG экспортирован: {}. Сохраните проект, чтобы сохранить слои.",
+                "PNG exported: {}. Save the project to preserve layers.",
+                "PNG已导出：{}。请保存项目以保留图层。",
                 path.display()
             ),
-            Err(error) => format!("Ошибка экспорта: {error}"),
+            Err(error) => crate::tf!(
+                "Ошибка экспорта: {error}",
+                "Export error: {error}",
+                "导出错误：{error}"
+            ),
         };
     }
 
@@ -429,7 +472,7 @@ impl Wizard {
         }
         self.group_clipboard = Some(group);
         self.clipboard = Some(tile);
-        self.status = "Иконка скопирована вместе со слоями.".into();
+        self.status = crate::i18n::tr("Иконка скопирована вместе со слоями.").into();
     }
 
     fn paste_icon(&mut self, text: Option<&str>) {
@@ -469,14 +512,14 @@ impl Wizard {
                     doc.tiles[selected] = tile.clone();
                 }
             }) {
-                self.status = "Иконка вставлена вместе со слоями.".into();
+                self.status = crate::i18n::tr("Иконка вставлена вместе со слоями.").into();
             }
         }
     }
 
     fn import_layer(&mut self) {
         let Some(path) = rfd::FileDialog::new()
-            .add_filter("Слой PNG", &["png"])
+            .add_filter(crate::i18n::tr("Слой PNG"), &["png"])
             .pick_file()
         else {
             return;
@@ -486,7 +529,7 @@ impl Wizard {
 
     fn replace_layer(&mut self) {
         if let Some(path) = rfd::FileDialog::new()
-            .add_filter("Слой PNG", &["png"])
+            .add_filter(crate::i18n::tr("Слой PNG"), &["png"])
             .pick_file()
         {
             self.import_path(&path, true);
@@ -507,15 +550,21 @@ impl Wizard {
                     return;
                 }
                 self.status = if resized {
-                    "PNG приведён к 32 × 32 без сглаживания."
+                    crate::i18n::tr("PNG приведён к 32 × 32 без сглаживания.")
                 } else if replace {
-                    "Изображение слоя заменено."
+                    crate::i18n::tr("Изображение слоя заменено.")
                 } else {
-                    "Слой добавлен."
+                    crate::i18n::tr("Слой добавлен.")
                 }
                 .into();
             }
-            Err(error) => self.status = format!("Ошибка импорта: {error}"),
+            Err(error) => {
+                self.status = crate::tf!(
+                    "Ошибка импорта: {error}",
+                    "Import error: {error}",
+                    "导入错误：{error}"
+                )
+            }
         }
     }
 
@@ -579,7 +628,11 @@ impl Wizard {
                 self.packages.clear();
                 self.library_textures.clear();
                 self.library_texture_cache.clear();
-                self.library_errors = vec![format!("Не удалось открыть папку: {error}")];
+                self.library_errors = vec![crate::tf!(
+                    "Не удалось открыть папку: {error}",
+                    "Could not open folder: {error}",
+                    "无法打开文件夹：{error}"
+                )];
             }
         }
     }
@@ -655,7 +708,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     // Same-directory temporary file: a failed write never truncates the existing document.
     let filename = path
         .file_name()
-        .ok_or("Invalid filename")?
+        .ok_or(crate::i18n::tr("Недопустимое имя файла"))?
         .to_string_lossy();
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -734,6 +787,114 @@ mod tests {
     }
 
     #[test]
+    fn language_menu_switches_immediately_and_persists_without_editing_document() {
+        i18n::set_language(i18n::Language::English);
+        let ctx = egui::Context::default();
+        ui::configure(&ctx);
+        let folder = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join(format!("language-test-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let mut wizard = Wizard::from_document(blank(), None, String::new());
+        wizard.storage_root = Some(folder.clone());
+        let original = wizard.doc.clone();
+        let draw = |wizard: &mut Wizard, events| {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(1050.0, 720.0))),
+                    events,
+                    ..Default::default()
+                },
+                |ui| wizard.draw_ui(ui),
+            );
+            output.textures_delta.clear();
+            output
+        };
+        let position = |output: &egui::FullOutput, label: &str| {
+            output
+                .shapes
+                .iter()
+                .find_map(|shape| {
+                    if let egui::Shape::Text(text) = &shape.shape {
+                        (text.galley.text() == label).then_some(text.pos + Vec2::splat(5.0))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|| panic!("Missing UI label: {label}"))
+        };
+        for language in [
+            i18n::Language::Chinese,
+            i18n::Language::Russian,
+            i18n::Language::English,
+        ] {
+            let output = draw(&mut wizard, vec![]);
+            let pos = position(&output, i18n::tr("Язык"));
+            for pressed in [true, false] {
+                draw(
+                    &mut wizard,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: Default::default(),
+                        },
+                    ],
+                );
+            }
+            let output = draw(&mut wizard, vec![]);
+            let pos = position(&output, language.name());
+            for pressed in [true, false] {
+                draw(
+                    &mut wizard,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: Default::default(),
+                        },
+                    ],
+                );
+            }
+            assert_eq!(wizard.language, language);
+            assert_eq!(
+                storage::load_preferences(&folder).unwrap().language,
+                Some(language)
+            );
+            let output = draw(&mut wizard, vec![]);
+            position(&output, i18n::tr("Открыть"));
+            assert!(wizard.doc.tiles == original.tiles);
+            assert!(!wizard.dirty);
+        }
+        // Verify every translated Chinese glyph, including the language menu name.
+        let catalog: std::collections::BTreeMap<String, [String; 2]> =
+            serde_json::from_str(include_str!("locales.json")).unwrap();
+        ctx.fonts_mut(|fonts| {
+            let font = egui::FontId::proportional(13.0);
+            for text in catalog.values().map(|v| v[1].as_str()).chain(["简体中文"]) {
+                for ch in text
+                    .chars()
+                    .filter(|c| *c >= '\u{4e00}' && *c <= '\u{9fff}')
+                {
+                    assert!(fonts.has_glyph(&font, ch), "Missing Chinese glyph: {ch}");
+                }
+            }
+        });
+        wizard.preferences.language = Some(i18n::Language::Chinese);
+        wizard.persist_preferences();
+        let mut restarted = Wizard::from_document(blank(), None, String::new());
+        restarted.initialize_storage(folder.clone());
+        assert_eq!(restarted.language, i18n::Language::Chinese);
+        i18n::set_language(i18n::Language::English);
+        drop(restarted);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
     fn interface_renders_at_minimum_and_default_size() {
         let ctx = egui::Context::default();
         ui::configure(&ctx);
@@ -790,7 +951,7 @@ mod tests {
                 })
                 .expect("Action button must be rendered")
         };
-        let apply = button_pos(&output, "Применить");
+        let apply = button_pos(&output, crate::i18n::tr("Применить"));
         output.textures_delta.clear();
         for pressed in [true, false] {
             let mut output = draw(vec![
@@ -805,7 +966,7 @@ mod tests {
             output.textures_delta.clear();
         }
         let mut output = draw(vec![]);
-        let undo = button_pos(&output, "Отменить");
+        let undo = button_pos(&output, crate::i18n::tr("Отменить"));
         output.textures_delta.clear();
         assert_eq!(wizard.doc.tiles[1][0].x, 3);
         assert_eq!(wizard.doc.tiles[1][0].pixels.rgba, original.rgba);
@@ -1122,7 +1283,7 @@ mod tests {
         );
         for confirm in [false, true] {
             let output = shortcut_frame(&mut wizard, &ctx, vec![]);
-            let save = label_position(&output, "Сохранить Tileset");
+            let save = label_position(&output, crate::i18n::tr("Сохранить Tileset"));
             click_test(&mut wizard, &ctx, save);
             assert!(wizard.confirm_png_save);
             assert_eq!(std::fs::read(&path).unwrap(), original_bytes);
@@ -1131,9 +1292,9 @@ mod tests {
             let action = label_position(
                 &output,
                 if confirm {
-                    "Да, перезаписать"
+                    crate::i18n::tr("Да, перезаписать")
                 } else {
-                    "Отмена"
+                    crate::i18n::tr("Отмена")
                 },
             );
             click_test(&mut wizard, &ctx, action);

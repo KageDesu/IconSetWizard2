@@ -73,16 +73,17 @@ impl Document {
             || image.height() % CELL != 0
             || image.height() / CELL > MAX_ROWS as u32
         {
-            return Err(
-                "Iconset должен иметь ширину 512 px и полные ряды по 32 px (до 256 рядов).".into(),
-            );
+            return Err(crate::i18n::tr(
+                "Iconset должен иметь ширину 512 px и полные ряды по 32 px (до 256 рядов).",
+            )
+            .into());
         }
         let mut tiles = Vec::new();
         for y in 0..image.height() / CELL {
             for x in 0..COLS as u32 {
                 let tile =
                     image::imageops::crop_imm(&image, x * CELL, y * CELL, CELL, CELL).to_image();
-                tiles.push(vec![Layer::new("Оригинал".into(), tile)]);
+                tiles.push(vec![Layer::new(crate::i18n::tr("Оригинал").into(), tile)]);
             }
         }
         Ok(Self { version: 2, tiles })
@@ -94,12 +95,12 @@ impl Document {
             || !self.tiles.len().is_multiple_of(COLS)
             || self.tiles.len() > MAX_ROWS * COLS
         {
-            return Err("Неподдерживаемая или некорректная сетка проекта.".into());
+            return Err(crate::i18n::tr("Неподдерживаемая или некорректная сетка проекта.").into());
         }
         let mut bytes = 0usize;
         for tile in &self.tiles {
             if tile.len() > 128 {
-                return Err("Слишком много слоёв в иконке.".into());
+                return Err(crate::i18n::tr("Слишком много слоёв в иконке.").into());
             }
             for layer in tile {
                 bytes += layer.pixels.rgba.len();
@@ -114,12 +115,12 @@ impl Document {
                     || !layer.hue.is_finite()
                     || layer.hue.abs() > 360.0
                 {
-                    return Err("Некорректные пиксели или параметры слоя.".into());
+                    return Err(crate::i18n::tr("Некорректные пиксели или параметры слоя.").into());
                 }
             }
         }
         if bytes > 64 * 1024 * 1024 {
-            return Err("Проект превышает лимит 64 MB пиксельных данных.".into());
+            return Err(crate::i18n::tr("Проект превышает лимит 64 MB пиксельных данных.").into());
         }
         Ok(())
     }
@@ -301,7 +302,7 @@ pub fn read_png(path: &Path) -> Result<RgbaImage, String> {
         .with_guessed_format()
         .map_err(|e| e.to_string())?;
     if reader.format() != Some(image::ImageFormat::Png) {
-        return Err("Выберите изображение PNG.".into());
+        return Err(crate::i18n::tr("Выберите изображение PNG.").into());
     }
     let mut reader = reader;
     reader.limits(png_limits());

@@ -260,8 +260,10 @@ impl Wizard {
         let mut targets = BTreeSet::new();
         for tile in &group {
             if tile.x >= COLS - x || tile.y >= self.doc.tiles.len() / COLS - y {
-                self.status =
-                    "Группа не помещается в атлас. Выберите другую ячейку или добавьте ряд.".into();
+                self.status = crate::i18n::tr(
+                    "Группа не помещается в атлас. Выберите другую ячейку или добавьте ряд.",
+                )
+                .into();
                 return false;
             }
             let index = (y + tile.y) * COLS + x + tile.x;
@@ -279,7 +281,7 @@ impl Wizard {
                 self.selected = *self.selection.first().unwrap();
                 self.sync();
             }
-            self.status = "Группа иконок вставлена. Ctrl+Z — отменить.".into();
+            self.status = crate::i18n::tr("Группа иконок вставлена. Ctrl+Z — отменить.").into();
             true
         } else {
             false
@@ -299,11 +301,11 @@ impl Wizard {
         let Some(mut layer) = self.doc.tiles[tile].get(index).cloned() else {
             return;
         };
-        layer.name = format!("{} — копия", layer.name);
+        layer.name = crate::tf!("{} — копия", "{} — copy", "{} — 副本", layer.name);
         if self.change(|doc| doc.tiles[tile].insert(index + 1, layer)) {
             self.layer = index + 1;
             self.sync();
-            self.status = "Слой продублирован.".into();
+            self.status = crate::i18n::tr("Слой продублирован.").into();
         }
     }
     pub(super) fn move_layer(&mut self, from: LayerDrag, tile: usize, mut position: usize) -> bool {
@@ -329,7 +331,7 @@ impl Wizard {
             self.selection = BTreeSet::from([tile]);
             self.layer = position;
             self.sync();
-            self.status = "Слой перемещён. Ctrl+Z — отменить.".into();
+            self.status = crate::i18n::tr("Слой перемещён. Ctrl+Z — отменить.").into();
             true
         } else {
             false
@@ -384,7 +386,11 @@ impl Wizard {
         if count > 0 && from != to {
             self.change(|doc| *doc = candidate);
         }
-        self.status = format!("Замена цвета: {count} пикселей. Прозрачность сохранена.");
+        self.status = crate::tf!(
+            "Замена цвета: {count} пикселей. Прозрачность сохранена.",
+            "Color replacement: {count} pixels. Transparency preserved.",
+            "颜色替换：{count}个像素。透明度已保留。"
+        );
     }
     pub(super) fn export_cells_to(&mut self, folder: &Path) -> Result<usize, String> {
         self.commit_draft();
@@ -412,8 +418,10 @@ impl Wizard {
             .any(|i| folder.join(format!("icon_{i:04}.png")).exists());
         if exists
             && rfd::MessageDialog::new()
-                .set_title("Экспорт иконок")
-                .set_description("Некоторые icon_XXXX.png уже существуют. Перезаписать их?")
+                .set_title(crate::i18n::tr("Экспорт иконок"))
+                .set_description(crate::i18n::tr(
+                    "Некоторые icon_XXXX.png уже существуют. Перезаписать их?",
+                ))
                 .set_buttons(rfd::MessageButtons::YesNo)
                 .show()
                 != rfd::MessageDialogResult::Yes
@@ -421,11 +429,13 @@ impl Wizard {
             return;
         }
         self.status = match self.export_cells_to(&folder) {
-            Ok(count) => format!(
+            Ok(count) => crate::tf!(
                 "Экспортировано {count} отдельных PNG в {}",
+                "Exported {count} individual PNGs to {}",
+                "已将{count}个独立PNG导出至{}",
                 folder.display()
             ),
-            Err(e) => format!("Ошибка экспорта: {e}"),
+            Err(e) => crate::tf!("Ошибка экспорта: {e}", "Export error: {e}", "导出错误：{e}"),
         };
     }
     pub(super) fn favorite_key(&self, category: usize, index: usize) -> String {
@@ -451,7 +461,11 @@ impl Wizard {
         if let Some(root) = &self.storage_root
             && let Err(e) = storage::save_preferences(root, &self.preferences)
         {
-            self.status = format!("Не удалось сохранить избранное: {e}");
+            self.status = crate::tf!(
+                "Не удалось сохранить избранное: {e}",
+                "Could not save preferences: {e}",
+                "无法保存设置：{e}"
+            );
         }
     }
     pub(super) fn library_matches(&self, category: usize, index: usize) -> bool {
@@ -480,6 +494,10 @@ impl Wizard {
     pub(super) fn initialize_storage(&mut self, root: PathBuf) {
         match storage::load_preferences(&root) {
             Ok(p) => {
+                if std::env::var_os("ISW_LANGUAGE").is_none() {
+                    self.language = crate::i18n::Language::startup(p.language);
+                    crate::i18n::set_language(self.language);
+                }
                 self.preferences = p;
                 if let Some(folder) = &self.preferences.library_folder
                     && folder.is_dir()
@@ -487,13 +505,25 @@ impl Wizard {
                     self.library_folder = folder.clone();
                 }
             }
-            Err(e) => self.status = format!("Ошибка настроек: {e}"),
+            Err(e) => {
+                self.status = crate::tf!(
+                    "Ошибка настроек: {e}",
+                    "Preferences error: {e}",
+                    "设置错误：{e}"
+                )
+            }
         }
         self.recovery_candidates = storage::candidates(&root);
         self.recovery_open = !self.recovery_candidates.is_empty();
         match storage::RecoveryStore::new(&root) {
             Ok(store) => self.autosave_store = Some(store),
-            Err(e) => self.status = format!("Автосохранение недоступно: {e}"),
+            Err(e) => {
+                self.status = crate::tf!(
+                    "Автосохранение недоступно: {e}",
+                    "Autosave unavailable: {e}",
+                    "自动保存不可用：{e}"
+                )
+            }
         }
         self.storage_root = Some(root);
     }
@@ -531,7 +561,11 @@ impl Wizard {
                 && (self.autosave_needed || pending)
                 && let Err(e) = self.autosave_now()
             {
-                self.status = format!("Ошибка автосохранения: {e}");
+                self.status = crate::tf!(
+                    "Ошибка автосохранения: {e}",
+                    "Autosave error: {e}",
+                    "自动保存错误：{e}"
+                );
                 self.autosave_last = std::time::Instant::now();
             }
             ctx.request_repaint_after(std::time::Duration::from_secs(1));
@@ -566,7 +600,9 @@ impl Wizard {
         self.recovery_open = false;
         self.overwrite_png = false;
         self.selection_anchor = self.selected;
-        self.status = "Проект восстановлен. Сохраните его, чтобы сохранить изменения.".into();
+        self.status =
+            crate::i18n::tr("Проект восстановлен. Сохраните его, чтобы сохранить изменения.")
+                .into();
         self.autosave_now()?;
         Ok(())
     }

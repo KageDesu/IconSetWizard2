@@ -32,12 +32,12 @@ pub fn load_folder(folder: &Path) -> Result<(Vec<Package>, Vec<String>), String>
 
 pub fn load_package(path: &Path) -> Result<Package, String> {
     if std::fs::metadata(path).map_err(|e| e.to_string())?.len() > 32 * 1024 * 1024 {
-        return Err("Пакет превышает 32 MB".into());
+        return Err(crate::i18n::tr("Пакет превышает 32 MB").into());
     }
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
     let text = if bytes.starts_with(&[0xff, 0xfe]) {
         if !bytes.len().is_multiple_of(2) {
-            return Err("Некорректный UTF-16".into());
+            return Err(crate::i18n::tr("Некорректный UTF-16").into());
         }
         let words = bytes[2..]
             .as_chunks::<2>()
@@ -50,15 +50,21 @@ pub fn load_package(path: &Path) -> Result<Package, String> {
         String::from_utf8(bytes).map_err(|e| e.to_string())?
     };
     let mut lines = text.trim_start_matches('\u{feff}').lines();
-    let name = lines.next().ok_or("Нет имени категории")?.to_owned();
-    let info = lines.next().ok_or("Нет строки описания")?.to_owned();
+    let name = lines
+        .next()
+        .ok_or(crate::i18n::tr("Нет имени категории"))?
+        .to_owned();
+    let info = lines
+        .next()
+        .ok_or(crate::i18n::tr("Нет строки описания"))?
+        .to_owned();
     let mut items = Vec::new();
     for (index, line) in lines.enumerate() {
         if line.trim().is_empty() {
             continue;
         }
         if items.len() >= 8192 {
-            return Err("Слишком много иконок в пакете".into());
+            return Err(crate::i18n::tr("Слишком много иконок в пакете").into());
         }
         let decoded = line
             .chars()
@@ -66,17 +72,17 @@ pub fn load_package(path: &Path) -> Result<Package, String> {
             .map(|(i, c)| {
                 let value = (c as u32)
                     .checked_sub(b"iwpk"[i % 4] as u32)
-                    .ok_or("Некорректная кодировка пакета")?;
-                u8::try_from(value).map_err(|_| "Некорректная кодировка пакета")
+                    .ok_or(crate::i18n::tr("Некорректная кодировка пакета"))?;
+                u8::try_from(value).map_err(|_| crate::i18n::tr("Некорректная кодировка пакета"))
             })
             .collect::<Result<Vec<_>, _>>()?;
         let image = decode_base64(&decoded)
             .and_then(|bytes| decode_png(&bytes))
-            .map_err(|e| format!("Иконка {}: {e}", index + 1))?;
+            .map_err(|e| crate::tf!("Иконка {}: {e}", "Icon {}: {e}", "图标{}：{e}", index + 1))?;
         items.push(fit_cell(image));
     }
     if items.is_empty() {
-        return Err("Пакет не содержит иконок".into());
+        return Err(crate::i18n::tr("Пакет не содержит иконок").into());
     }
     Ok(Package {
         name,
@@ -93,7 +99,7 @@ fn decode_base64(input: &[u8]) -> Result<Vec<u8>, String> {
         .filter(|b| !b.is_ascii_whitespace())
         .collect::<Vec<_>>();
     if !input.len().is_multiple_of(4) {
-        return Err("Некорректная длина Base64".into());
+        return Err(crate::i18n::tr("Некорректная длина Base64").into());
     }
     let mut out = Vec::with_capacity(input.len() / 4 * 3);
     for (index, chunk) in input.as_chunks::<4>().0.iter().enumerate() {
@@ -110,7 +116,7 @@ fn decode_base64(input: &[u8]) -> Result<Vec<u8>, String> {
                     padding += 1;
                     0
                 }
-                _ => return Err("Некорректный Base64".into()),
+                _ => return Err(crate::i18n::tr("Некорректный Base64").into()),
             };
         }
         let value = values[0] << 18 | values[1] << 12 | values[2] << 6 | values[3];

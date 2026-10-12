@@ -1,0 +1,698 @@
+{
+  "Iconset должен иметь ширину 512 px и полные ряды по 32 px (до 256 рядов).": [
+    "Iconset must be 512 px wide with complete 32 px rows (up to 256 rows).",
+    "图标集必须为512像素宽，包含完整的32像素行（最多256行）。"
+  ],
+  "Оригинал": [
+    "Original",
+    "原始图像"
+  ],
+  "Неподдерживаемая или некорректная сетка проекта.": [
+    "Unsupported or invalid project grid.",
+    "不支持或无效的项目网格。"
+  ],
+  "Слишком много слоёв в иконке.": [
+    "Too many layers in an icon.",
+    "图标中的图层过多。"
+  ],
+  "Некорректные пиксели или параметры слоя.": [
+    "Invalid layer pixels or parameters.",
+    "图层像素或参数无效。"
+  ],
+  "Проект превышает лимит 64 MB пиксельных данных.": [
+    "Project exceeds the 64 MB pixel data limit.",
+    "项目像素数据超过64 MB限制。"
+  ],
+  "Выберите изображение PNG.": [
+    "Choose a PNG image.",
+    "请选择PNG图像。"
+  ],
+  "Группа не помещается в атлас. Выберите другую ячейку или добавьте ряд.": [
+    "Group does not fit in the atlas. Choose another cell or add a row.",
+    "所选组无法放入图集。请选择其他单元格或添加一行。"
+  ],
+  "Группа иконок вставлена. Ctrl+Z — отменить.": [
+    "Icon group pasted. Ctrl+Z to undo.",
+    "已粘贴图标组。按Ctrl+Z撤销。"
+  ],
+  "{} — копия": [
+    "{} — copy",
+    "{} — 副本"
+  ],
+  "Слой продублирован.": [
+    "Layer duplicated.",
+    "已复制图层。"
+  ],
+  "Слой перемещён. Ctrl+Z — отменить.": [
+    "Layer moved. Ctrl+Z to undo.",
+    "已移动图层。按Ctrl+Z撤销。"
+  ],
+  "Замена цвета: {count} пикселей. Прозрачность сохранена.": [
+    "Color replacement: {count} pixels. Transparency preserved.",
+    "颜色替换：{count}个像素。透明度已保留。"
+  ],
+  "Экспорт иконок": [
+    "Export icons",
+    "导出图标"
+  ],
+  "Некоторые icon_XXXX.png уже существуют. Перезаписать их?": [
+    "Some icon_XXXX.png files already exist. Overwrite them?",
+    "部分icon_XXXX.png文件已存在。是否覆盖？"
+  ],
+  "Экспортировано {count} отдельных PNG в {}": [
+    "Exported {count} individual PNGs to {}",
+    "已将{count}个独立PNG导出至{}"
+  ],
+  "Ошибка экспорта: {e}": [
+    "Export error: {e}",
+    "导出错误：{e}"
+  ],
+  "Не удалось сохранить избранное: {e}": [
+    "Could not save preferences: {e}",
+    "无法保存设置：{e}"
+  ],
+  "Ошибка настроек: {e}": [
+    "Preferences error: {e}",
+    "设置错误：{e}"
+  ],
+  "Автосохранение недоступно: {e}": [
+    "Autosave unavailable: {e}",
+    "自动保存不可用：{e}"
+  ],
+  "Ошибка автосохранения: {e}": [
+    "Autosave error: {e}",
+    "自动保存错误：{e}"
+  ],
+  "Проект восстановлен. Сохраните его, чтобы сохранить изменения.": [
+    "Project recovered. Save it to keep your changes.",
+    "项目已恢复。请保存以保留更改。"
+  ],
+  "Пакет превышает 32 MB": [
+    "Package exceeds 32 MB",
+    "资源包超过32 MB"
+  ],
+  "Некорректный UTF-16": [
+    "Invalid UTF-16",
+    "无效的UTF-16"
+  ],
+  "Нет имени категории": [
+    "Missing category name",
+    "缺少分类名称"
+  ],
+  "Нет строки описания": [
+    "Missing description",
+    "缺少描述"
+  ],
+  "Слишком много иконок в пакете": [
+    "Too many icons in package",
+    "资源包中的图标过多"
+  ],
+  "Некорректная кодировка пакета": [
+    "Invalid package encoding",
+    "资源包编码无效"
+  ],
+  "Иконка {}: {e}": [
+    "Icon {}: {e}",
+    "图标{}：{e}"
+  ],
+  "Пакет не содержит иконок": [
+    "Package contains no icons",
+    "资源包中没有图标"
+  ],
+  "Некорректная длина Base64": [
+    "Invalid Base64 length",
+    "Base64长度无效"
+  ],
+  "Некорректный Base64": [
+    "Invalid Base64",
+    "无效的Base64"
+  ],
+  "Слой": [
+    "Layer",
+    "图层"
+  ],
+  "Iconset открыт. Выберите ячейку для редактирования.": [
+    "Iconset opened. Select a cell to edit.",
+    "已打开图标集。请选择单元格进行编辑。"
+  ],
+  "Откройте PNG или перетащите проект на окно.": [
+    "Open a PNG or drag a project onto the window.",
+    "打开PNG或将项目拖入窗口。"
+  ],
+  "Несохранённый проект": [
+    "Unsaved project",
+    "未保存的项目"
+  ],
+  "Отменить изменения и открыть другой документ?": [
+    "Discard changes and open another document?",
+    "放弃更改并打开其他文档？"
+  ],
+  "Файл проекта слишком большой.": [
+    "Project file is too large.",
+    "项目文件过大。"
+  ],
+  "Документ открыт.": [
+    "Document opened.",
+    "已打开文档。"
+  ],
+  "Ошибка открытия: {error}": [
+    "Open error: {error}",
+    "打开错误：{error}"
+  ],
+  "Iconset / проект": [
+    "Iconset / project",
+    "图标集 / 项目"
+  ],
+  "Проект Wizard": [
+    "Wizard project",
+    "Wizard项目"
+  ],
+  "Проект сохранён: {}": [
+    "Project saved: {}",
+    "项目已保存：{}"
+  ],
+  "Ошибка сохранения: {error}": [
+    "Save error: {error}",
+    "保存错误：{error}"
+  ],
+  "PNG экспортирован: {}. Сохраните проект, чтобы сохранить слои.": [
+    "PNG exported: {}. Save the project to preserve layers.",
+    "PNG已导出：{}。请保存项目以保留图层。"
+  ],
+  "Ошибка экспорта: {error}": [
+    "Export error: {error}",
+    "导出错误：{error}"
+  ],
+  "Иконка скопирована вместе со слоями.": [
+    "Icon copied with its layers.",
+    "已复制图标及其图层。"
+  ],
+  "Иконка вставлена вместе со слоями.": [
+    "Icon pasted with its layers.",
+    "已粘贴图标及其图层。"
+  ],
+  "Слой PNG": [
+    "PNG layer",
+    "PNG图层"
+  ],
+  "PNG приведён к 32 × 32 без сглаживания.": [
+    "PNG resized to 32 × 32 without smoothing.",
+    "PNG已调整为32 × 32，不使用平滑处理。"
+  ],
+  "Изображение слоя заменено.": [
+    "Layer image replaced.",
+    "已替换图层图像。"
+  ],
+  "Слой добавлен.": [
+    "Layer added.",
+    "已添加图层。"
+  ],
+  "Ошибка импорта: {error}": [
+    "Import error: {error}",
+    "导入错误：{error}"
+  ],
+  "Не удалось открыть папку: {error}": [
+    "Could not open folder: {error}",
+    "无法打开文件夹：{error}"
+  ],
+  "Применить": [
+    "Apply",
+    "应用"
+  ],
+  "Отменить": [
+    "Undo",
+    "撤销"
+  ],
+  "Сохранить Tileset": [
+    "Save Tileset",
+    "保存图块集"
+  ],
+  "Да, перезаписать": [
+    "Yes, overwrite",
+    "是，覆盖"
+  ],
+  "Отмена": [
+    "Cancel",
+    "取消"
+  ],
+  "Файл настроек слишком большой": [
+    "Preferences file is too large",
+    "设置文件过大"
+  ],
+  "Копия превышает 128 MB": [
+    "Recovery copy exceeds 128 MB",
+    "恢复副本超过128 MB"
+  ],
+  "Неизвестный формат копии": [
+    "Unknown recovery format",
+    "未知的恢复格式"
+  ],
+  "{} · {} мин. назад": [
+    "{} · {} min. ago",
+    "{} · {}分钟前"
+  ],
+  "Проект без описания": [
+    "Project without description",
+    "没有描述的项目"
+  ],
+  "Автосохранение превышает 128 MB": [
+    "Autosave exceeds 128 MB",
+    "自动保存超过128 MB"
+  ],
+  "Новый Iconset": [
+    "New Iconset",
+    "新图标集"
+  ],
+  "Свойства применены. Ctrl+Z — отменить.": [
+    "Properties applied. Ctrl+Z to undo.",
+    "已应用属性。按Ctrl+Z撤销。"
+  ],
+  "ВЫБРАННАЯ ИКОНКА": [
+    "SELECTED ICON",
+    "所选图标"
+  ],
+  "Колонка {} · Ряд {}": [
+    "Column {} · Row {}",
+    "列{} · 行{}"
+  ],
+  "Выбрано ячеек: {}": [
+    "Selected cells: {}",
+    "所选单元格：{}"
+  ],
+  "Копировать": [
+    "Copy",
+    "复制"
+  ],
+  "Вставить": [
+    "Paste",
+    "粘贴"
+  ],
+  "Ctrl+V · заменяет текущую иконку": [
+    "Ctrl+V · replaces the current icon",
+    "Ctrl+V · 替换当前图标"
+  ],
+  "Экспорт ячеек": [
+    "Export cells",
+    "导出单元格"
+  ],
+  "Очистить ячейки": [
+    "Clear cells",
+    "清空单元格"
+  ],
+  "Библиотека": [
+    "Library",
+    "素材库"
+  ],
+  "Заменить PNG": [
+    "Replace PNG",
+    "替换PNG"
+  ],
+  "Заменить картинку выбранного слоя, сохранив его свойства": [
+    "Replace the selected layer image, keeping its properties",
+    "替换所选图层的图像并保留属性"
+  ],
+  "Слои  {}": [
+    "Layers  {}",
+    "图层  {}"
+  ],
+  "Импортировать PNG в новый слой": [
+    "Import PNG as a new layer",
+    "将PNG导入为新图层"
+  ],
+  "Дубликат слоя": [
+    "Duplicate layer",
+    "复制图层"
+  ],
+  "Замена цвета": [
+    "Color replacement",
+    "颜色替换"
+  ],
+  "Пока пусто. Добавьте слой PNG.": [
+    "Empty. Add a PNG layer.",
+    "暂无内容。请添加PNG图层。"
+  ],
+  "{}% непрозрачности": [
+    "{}% opacity",
+    "{}%不透明度"
+  ],
+  "Скрыт": [
+    "Hidden",
+    "隐藏"
+  ],
+  "{} · перетащите для смены порядка или в другую ячейку": [
+    "{} · drag to reorder or move to another cell",
+    "{} · 拖动以重新排序或移至其他单元格"
+  ],
+  "Выше": [
+    "Up",
+    "上移"
+  ],
+  "Ниже": [
+    "Down",
+    "下移"
+  ],
+  "Удалить слой": [
+    "Delete layer",
+    "删除图层"
+  ],
+  "Слой удалён.": [
+    "Layer deleted.",
+    "已删除图层。"
+  ],
+  "Свойства слоя": [
+    "Layer properties",
+    "图层属性"
+  ],
+  "Название": [
+    "Name",
+    "名称"
+  ],
+  "Видимый слой": [
+    "Visible layer",
+    "显示图层"
+  ],
+  "Непрозрачность": [
+    "Opacity",
+    "不透明度"
+  ],
+  "Смещение X": [
+    "Offset X",
+    "X偏移"
+  ],
+  "Смещение Y": [
+    "Offset Y",
+    "Y偏移"
+  ],
+  "Поворот, °": [
+    "Rotation, °",
+    "旋转，°"
+  ],
+  "Масштаб содержимого слоя": [
+    "Layer content scale",
+    "图层内容缩放"
+  ],
+  "Цветовой тон Hue, °": [
+    "Hue, °",
+    "色相，°"
+  ],
+  "↔ Отразить X": [
+    "↔ Flip X",
+    "↔ 水平翻转"
+  ],
+  "↕ Отразить Y": [
+    "↕ Flip Y",
+    "↕ 垂直翻转"
+  ],
+  "Сглаживать преобразования": [
+    "Smooth transformations",
+    "平滑变换"
+  ],
+  "Для пиксельной графики оставьте выключенным. Сглаживание учитывает прозрачность краёв.": [
+    "Leave off for pixel art. Smoothing respects edge transparency.",
+    "像素画建议关闭。平滑处理会保留边缘透明度。"
+  ],
+  "Сбросить изменения": [
+    "Reset changes",
+    "重置更改"
+  ],
+  "Предпросмотр виден сразу. «Применить» фиксирует одну операцию Undo. Сохранение и экспорт также применяют параметры.": [
+    "Preview updates immediately. Apply records one undo step. Saving and exporting also apply parameters.",
+    "预览即时更新。“应用”记录一次可撤销操作。保存和导出也会应用参数。"
+  ],
+  "ДОКУМЕНТ": [
+    "DOCUMENT",
+    "文档"
+  ],
+  "Иконок": [
+    "Icons",
+    "图标数"
+  ],
+  "Колонок": [
+    "Columns",
+    "列数"
+  ],
+  "Рядов": [
+    "Rows",
+    "行数"
+  ],
+  "Добавить ряд": [
+    "Add row",
+    "添加一行"
+  ],
+  "Пустой ряд добавлен.": [
+    "Empty row added.",
+    "已添加空行。"
+  ],
+  "Проект хранит слои.\nPNG — готовая картинка для игры.": [
+    "Projects preserve layers.\nPNG is the final image for the game.",
+    "项目保留图层。\nPNG是用于游戏的最终图像。"
+  ],
+  "Автосохранение (30 с)": [
+    "Autosave (30 s)",
+    "自动保存（30秒）"
+  ],
+  "Восстановление…": [
+    "Recovery…",
+    "恢复…"
+  ],
+  "Перезаписывать исходный PNG": [
+    "Overwrite source PNG",
+    "覆盖原始PNG"
+  ],
+  "При экспорте обновлять открытый PNG без диалога выбора файла": [
+    "Update the opened PNG on export without a file dialog",
+    "导出时更新已打开的PNG，无需选择文件"
+  ],
+  "Экспорт обновит исходный PNG. Проект со слоями сохраняется отдельно.": [
+    "Export will update the source PNG. Save the layered project separately.",
+    "导出将更新原始PNG。请单独保存包含图层的项目。"
+  ],
+  "БЫСТРЫЕ ДЕЙСТВИЯ": [
+    "QUICK ACTIONS",
+    "快捷操作"
+  ],
+  "Открыть": [
+    "Open",
+    "打开"
+  ],
+  "Сохранить": [
+    "Save",
+    "保存"
+  ],
+  "Сохранить проект со слоями перед закрытием?": [
+    "Save the layered project before closing?",
+    "关闭前保存包含图层的项目？"
+  ],
+  "Закрыть без сохранения": [
+    "Close without saving",
+    "不保存并关闭"
+  ],
+  "Сохранить Tileset?": [
+    "Save Tileset?",
+    "保存图块集？"
+  ],
+  "Перезаписать открытый PNG текущим Tileset?": [
+    "Overwrite the opened PNG with the current Tileset?",
+    "使用当前图块集覆盖已打开的PNG？"
+  ],
+  "Изменения заменят содержимое файла. Слои сохраняются отдельно в проекте.": [
+    "Changes will replace the file contents. Layers are saved separately in the project.",
+    "更改将替换文件内容。图层单独保存在项目中。"
+  ],
+  "Мастерская игровых иконок": [
+    "Game icon workshop",
+    "游戏图标工作室"
+  ],
+  "Изменён": [
+    "Modified",
+    "已修改"
+  ],
+  "Сохранён": [
+    "Saved",
+    "已保存"
+  ],
+  "Экспериментальная версия": [
+    "Experimental version",
+    "实验版本"
+  ],
+  "Сохранить проект": [
+    "Save project",
+    "保存项目"
+  ],
+  "Экспорт PNG": [
+    "Export PNG",
+    "导出PNG"
+  ],
+  "Перезаписать открытый PNG с подтверждением": [
+    "Overwrite the opened PNG with confirmation",
+    "确认后覆盖已打开的PNG"
+  ],
+  "Повторить": [
+    "Redo",
+    "重做"
+  ],
+  "Полотно": [
+    "Canvas",
+    "画布"
+  ],
+  "Ctrl+клик — группа · Shift+клик / протягивание — прямоугольник": [
+    "Ctrl+click: group · Shift+click / drag: rectangle",
+    "Ctrl+单击：组选择 · Shift+单击 / 拖动：矩形选择"
+  ],
+  "Показать сетку": [
+    "Show grid",
+    "显示网格"
+  ],
+  "Иконка #{index}": [
+    "Icon #{index}",
+    "图标#{index}"
+  ],
+  "Иконка #{}  ·  Чёткие пиксели без сглаживания": [
+    "Icon #{}  ·  Crisp pixels without smoothing",
+    "图标#{}  ·  清晰像素，无平滑处理"
+  ],
+  "Библиотека иконок": [
+    "Icon library",
+    "图标素材库"
+  ],
+  "Выбрать папку пакетов": [
+    "Choose package folder",
+    "选择资源包文件夹"
+  ],
+  "Обновить": [
+    "Refresh",
+    "刷新"
+  ],
+  "Поиск:": [
+    "Search:",
+    "搜索："
+  ],
+  "Пакет, описание или номер иконки": [
+    "Package, description or icon number",
+    "资源包、描述或图标编号"
+  ],
+  "Только избранное": [
+    "Favorites only",
+    "仅收藏"
+  ],
+  "Все пакеты": [
+    "All packages",
+    "所有资源包"
+  ],
+  "Звёздочка на миниатюре — добавить или убрать из избранного": [
+    "Click a thumbnail star to add or remove a favorite",
+    "单击缩略图上的星号以添加或取消收藏"
+  ],
+  "Ошибки загрузки: {}": [
+    "Loading errors: {}",
+    "加载错误：{}"
+  ],
+  "В выбранной папке нет доступных пакетов .iwpk.": [
+    "No available .iwpk packages in the selected folder.",
+    "所选文件夹中没有可用的.iwpk资源包。"
+  ],
+  "{} иконок · щёлкните для добавления в выбранную ячейку": [
+    "{} icons · click to add to the selected cell",
+    "{}个图标 · 单击以添加到所选单元格"
+  ],
+  "Избранное": [
+    "Favorites",
+    "收藏"
+  ],
+  "Иконка из библиотеки добавлена новым слоем.": [
+    "Library icon added as a new layer.",
+    "素材库图标已添加为新图层。"
+  ],
+  "Найдено: {}": [
+    "Found: {}",
+    "找到：{}"
+  ],
+  "Из:": [
+    "From:",
+    "原色："
+  ],
+  "В:": [
+    "To:",
+    "新色："
+  ],
+  "Выберите исходный цвет из палитры слоя:": [
+    "Choose the source color from the layer palette:",
+    "从图层调色板选择原色："
+  ],
+  "Допуск": [
+    "Tolerance",
+    "容差"
+  ],
+  "Все слои выделенных ячеек": [
+    "All layers of selected cells",
+    "所选单元格的所有图层"
+  ],
+  "Без этой опции изменяется только текущий слой. Альфа сохраняется; цвет выбирается до Hue.": [
+    "Otherwise only the current layer changes. Alpha is preserved; color is selected before Hue.",
+    "否则仅修改当前图层。保留透明度；颜色在色相调整前选取。"
+  ],
+  "Предпросмотр результата:": [
+    "Result preview:",
+    "结果预览："
+  ],
+  "Заменить цвет": [
+    "Replace color",
+    "替换颜色"
+  ],
+  "Найдены автосохранения": [
+    "Autosaves found",
+    "发现自动保存"
+  ],
+  "Можно восстановить проект со слоями и неприменёнными параметрами. Исходные PNG не изменяются.": [
+    "Recover the project with layers and unapplied parameters. Source PNGs remain unchanged.",
+    "可恢复项目的图层和未应用的参数。原始PNG保持不变。"
+  ],
+  "Восстановить": [
+    "Restore",
+    "恢复"
+  ],
+  "Удалить копию": [
+    "Delete copy",
+    "删除副本"
+  ],
+  "Позже": [
+    "Later",
+    "稍后"
+  ],
+  "Ошибка восстановления: {e}": [
+    "Recovery error: {e}",
+    "恢复错误：{e}"
+  ],
+  "Язык": [
+    "Language",
+    "语言"
+  ],
+  "Язык изменён.": [
+    "Language changed.",
+    "语言已更改。"
+  ],
+  "Недопустимое имя файла": [
+    "Invalid filename",
+    "无效的文件名"
+  ],
+  "О программе": [
+    "About",
+    "关于"
+  ],
+  "Сайт автора": [
+    "Author website",
+    "作者网站"
+  ],
+  "Версия": [
+    "Version",
+    "版本"
+  ],
+  "Автор": [
+    "Author",
+    "作者"
+  ],
+  "Закрыть": [
+    "Close",
+    "关闭"
+  ]
+}
