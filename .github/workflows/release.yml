@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            binary: iconset-wizard.exe
+            executable: IconSetWizard2.exe
+            extension: zip
+          - platform: macos-arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+            binary: iconset-wizard
+            executable: IconSetWizard2
+            extension: tar.gz
+          - platform: linux-x64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            binary: iconset-wizard
+            executable: IconSetWizard2
+            extension: tar.gz
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check release version and resources
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version=$(awk -F '"' '/^version = / {print $2; exit}' Cargo.toml)
+          test "$RELEASE_TAG" = "v$version" || { echo "Tag $RELEASE_TAG must match Cargo.toml version v$version"; exit 1; }
+          test -f LICENSE
+          test -f assets/fonts/LICENSE
+          test -d packages
+          test -n "$(find packages -name '*.iwpk' -print -quit)"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libwayland-dev libx11-dev libxi-dev libxrandr-dev libgl1-mesa-dev
+
+      - name: Set up Rust
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup target add --toolchain stable "$BUILD_TARGET"
+
+      - name: Build release executable
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: cargo +stable build --release --locked --target "$BUILD_TARGET"
+
+      - name: Assemble release folder
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          BUILD_BINARY: ${{ matrix.binary }}
+          RELEASE_EXECUTABLE: ${{ matrix.executable }}
+          RELEASE_PLATFORM: ${{ matrix.platform }}
+          ARCHIVE_EXTENSION: ${{ matrix.extension }}
+        run: |
+          set -euo pipefail
+          mkdir -p staging/IconSetWizard2 release-assets
+          cp "target/$BUILD_TARGET/release/$BUILD_BINARY" "staging/IconSetWizard2/$RELEASE_EXECUTABLE"
+          cp -R packages staging/IconSetWizard2/packages
+          cp LICENSE staging/IconSetWizard2/LICENSE
+          cp assets/fonts/LICENSE staging/IconSetWizard2/NotoSansCJK-LICENSE.txt
+          printf '%s\n' \
+            'IconSet Wizard 2' \
+            "Version: $RELEASE_VERSION ($RELEASE_PLATFORM)" \
+            'Keep the packages folder beside the executable.' \
+            'Documentation: https://github.com/KageDesu/IconSetWizard2' \
+            > staging/IconSetWizard2/README.txt
+          echo "ARCHIVE_NAME=IconSetWizard2-$RELEASE_VERSION-$RELEASE_PLATFORM.$ARCHIVE_EXTENSION" >> "$GITHUB_ENV"
+
+      - name: Create Windows archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path staging/IconSetWizard2 -DestinationPath "release-assets/$env:ARCHIVE_NAME"
+
+      - name: Create macOS or Linux archive
+        if: runner.os != 'Windows'
+        env:
+          RELEASE_EXECUTABLE: ${{ matrix.executable }}
+        run: |
+          chmod +x "staging/IconSetWizard2/$RELEASE_EXECUTABLE"
+          tar -czf "release-assets/$ARCHIVE_NAME" -C staging IconSetWizard2
+          tar -tzf "release-assets/$ARCHIVE_NAME"
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.platform }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-release:
+    name: Create draft release
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download all release archives
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release-assets
+
+      - name: Create or update draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -eq 3
+          cat > release-notes.md <<'NOTES'
+          ## Downloads
+
+          - **Windows x64:** extract the ZIP and run `IconSetWizard2.exe`.
+          - **macOS Apple Silicon:** extract the tar.gz and launch `IconSetWizard2` from Terminal. This build is not notarized.
+          - **Linux x64:** extract the tar.gz and run `./IconSetWizard2`. A graphical desktop, compatible system libraries, an OpenGL driver, and a file-dialog portal backend or Zenity are required.
+
+          Each archive includes the executable, the `packages` icon library, and license files. Keep `packages` beside the executable.
+
+          macOS and Linux builds need launch testing on real systems before this draft is published.
+          NOTES
+          if gh release view "$RELEASE_TAG" --json isDraft > existing-release.json 2>/dev/null; then
+            test "$(jq -r .isDraft existing-release.json)" = true || { echo 'Refusing to modify a published release.'; exit 1; }
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          else
+            gh release create "$RELEASE_TAG" release-assets/* --verify-tag --draft --title "IconSet Wizard 2 ${RELEASE_TAG#v}" --notes-file release-notes.md
+          fi
