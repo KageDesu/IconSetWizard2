@@ -1,7 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod document;
+mod editor;
 mod library;
+mod storage;
 mod ui;
 use document::{CELL, COLS, Document, Layer, MAX_ROWS, fit_cell, read_png};
 use eframe::egui::{self, Color32, Pos2, Rect, Sense, Stroke, TextureHandle, Vec2};
@@ -26,6 +28,30 @@ struct Wizard {
     undo: Vec<Document>,
     redo: Vec<Document>,
     clipboard: Option<Vec<Layer>>,
+    group_clipboard: Option<Vec<editor::TileCopy>>,
+    selection: std::collections::BTreeSet<usize>,
+    selection_anchor: usize,
+    selection_drag: Option<usize>,
+    selection_drag_base: std::collections::BTreeSet<usize>,
+    preferences: storage::Preferences,
+    library_query: String,
+    library_favorites_only: bool,
+    library_search_all: bool,
+    library_texture_cache: std::collections::BTreeMap<(usize, usize), TextureHandle>,
+    color_open: bool,
+    color_from: [u8; 3],
+    color_to: [u8; 3],
+    color_tolerance: u8,
+    color_all_layers: bool,
+    storage_root: Option<PathBuf>,
+    autosave_store: Option<storage::RecoveryStore>,
+    autosave_enabled: bool,
+    autosave_needed: bool,
+    autosave_last: std::time::Instant,
+    autosave_draft: Option<Layer>,
+    recovery_candidates: Vec<PathBuf>,
+    recovery_open: bool,
+    restored_from: Option<PathBuf>,
     sheet: Option<TextureHandle>,
     preview: Option<TextureHandle>,
     refresh: bool,
@@ -84,6 +110,9 @@ impl Wizard {
             ),
         };
         let mut wizard = Self::from_document(doc, source, status);
+        if std::env::var_os("ISW_SCREENSHOT_PATH").is_none() {
+            wizard.initialize_storage(storage::root());
+        }
         if std::env::var_os("ISW_SCREENSHOT_PATH").is_some() {
             cc.egui_ctx
                 .all_styles_mut(|style| style.animation_time = 0.0);
@@ -93,6 +122,40 @@ impl Wizard {
             if std::env::var_os("ISW_SCREENSHOT_LIBRARY").is_some() {
                 wizard.load_library();
                 wizard.library_open = true;
+                match std::env::var("ISW_SCREENSHOT_LIBRARY").as_deref() {
+                    Ok("search") => wizard.library_query = "Battlers".into(),
+                    Ok("favorites") => {
+                        let category = wizard
+                            .packages
+                            .iter()
+                            .position(|p| p.name == "MV Battlers")
+                            .unwrap_or(0);
+                        for index in [0, 1, 2] {
+                            wizard.toggle_favorite(category, index);
+                        }
+                        wizard.library_favorites_only = true;
+                    }
+                    _ => {}
+                }
+            }
+            if std::env::var_os("ISW_SCREENSHOT_EDITOR").is_some() {
+                wizard.selection = std::collections::BTreeSet::from([1, 2, 17, 18]);
+                wizard.color_open = true;
+                if let Some(pixel) = wizard
+                    .draft
+                    .pixels
+                    .rgba
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .find(|p| p[3] > 0)
+                {
+                    wizard.color_from = [pixel[0], pixel[1], pixel[2]];
+                }
+            }
+            if let Some(path) = std::env::var_os("ISW_SCREENSHOT_RECOVERY_PATH") {
+                wizard.recovery_candidates = vec![PathBuf::from(path)];
+                wizard.recovery_open = true;
             }
         }
         wizard
@@ -129,6 +192,30 @@ impl Wizard {
             undo: vec![],
             redo: vec![],
             clipboard: None,
+            group_clipboard: None,
+            selection: std::collections::BTreeSet::from([0]),
+            selection_anchor: 0,
+            selection_drag: None,
+            selection_drag_base: Default::default(),
+            preferences: Default::default(),
+            library_query: String::new(),
+            library_favorites_only: false,
+            library_search_all: true,
+            library_texture_cache: Default::default(),
+            color_open: false,
+            color_from: [255, 0, 0],
+            color_to: [0, 128, 255],
+            color_tolerance: 0,
+            color_all_layers: false,
+            storage_root: None,
+            autosave_store: None,
+            autosave_enabled: true,
+            autosave_needed: false,
+            autosave_last: std::time::Instant::now(),
+            autosave_draft: None,
+            recovery_candidates: vec![],
+            recovery_open: false,
+            restored_from: None,
             sheet: None,
             preview: None,
             refresh: true,
@@ -146,6 +233,7 @@ impl Wizard {
 
     fn sync(&mut self) {
         self.selected = self.selected.min(self.doc.tiles.len() - 1);
+        self.selection.retain(|i| *i < self.doc.tiles.len());
         self.layer = self
             .layer
             .min(self.doc.tiles[self.selected].len().saturating_sub(1));
@@ -168,6 +256,7 @@ impl Wizard {
         }
         self.redo.clear();
         self.dirty = true;
+        self.autosave_needed = true;
         self.sync();
         self.document_open = true;
         true
@@ -177,6 +266,7 @@ impl Wizard {
         if let Some(previous) = self.undo.pop() {
             self.redo.push(std::mem::replace(&mut self.doc, previous));
             self.dirty = true;
+            self.autosave_needed = true;
             self.sync();
         }
     }
@@ -185,6 +275,7 @@ impl Wizard {
         if let Some(next) = self.redo.pop() {
             self.undo.push(std::mem::replace(&mut self.doc, next));
             self.dirty = true;
+            self.autosave_needed = true;
             self.sync();
         }
     }
@@ -224,6 +315,7 @@ impl Wizard {
                 if !self.may_replace() {
                     return;
                 }
+                self.clear_recovery();
                 self.doc = doc;
                 self.png_source = Some(path.clone())
                     .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("png")));
@@ -231,6 +323,8 @@ impl Wizard {
                 self.document_open = true;
                 self.source = Some(path);
                 self.selected = 0;
+                self.selection = std::collections::BTreeSet::from([0]);
+                self.selection_anchor = 0;
                 self.layer = 0;
                 self.undo.clear();
                 self.redo.clear();
@@ -267,6 +361,7 @@ impl Wizard {
             .and_then(|bytes| atomic_write(&path, &bytes));
         match result {
             Ok(()) => {
+                self.clear_recovery();
                 self.dirty = false;
                 self.source = Some(path.clone());
                 self.status = format!("Проект сохранён: {}", path.display());
@@ -322,16 +417,37 @@ impl Wizard {
     fn copy_icon(&mut self, ctx: &egui::Context) {
         self.commit_draft();
         let tile = self.doc.tiles[self.selected].clone();
+        let group = self.copy_group();
         // winit sends Paste only when the OS clipboard contains non-empty text.
         // Publish the actual layer data so native Ctrl+V also works between windows.
-        if let Ok(json) = serde_json::to_string(&tile) {
+        if group.len() > 1 {
+            if let Ok(json) = serde_json::to_string(&group) {
+                ctx.copy_text(format!("ICONSET_WIZARD_GROUP_2:{json}"));
+            }
+        } else if let Ok(json) = serde_json::to_string(&tile) {
             ctx.copy_text(format!("ICONSET_WIZARD_2:{json}"));
         }
+        self.group_clipboard = Some(group);
         self.clipboard = Some(tile);
         self.status = "Иконка скопирована вместе со слоями.".into();
     }
 
     fn paste_icon(&mut self, text: Option<&str>) {
+        if let Some(json) = text.and_then(|t| t.strip_prefix("ICONSET_WIZARD_GROUP_2:")) {
+            if json.len() <= 128 * 1024 * 1024
+                && let Ok(group) = serde_json::from_str::<Vec<editor::TileCopy>>(json)
+            {
+                self.paste_group(group);
+            }
+            return;
+        }
+        if text.is_none_or(|t| !t.starts_with("ICONSET_WIZARD_2:"))
+            && let Some(group) = self.group_clipboard.clone()
+            && group.len() > 1
+        {
+            self.paste_group(group);
+            return;
+        }
         let from_system = text.and_then(|text| {
             let json = text.strip_prefix("ICONSET_WIZARD_2:")?;
             if json.len() > 8 * 1024 * 1024 {
@@ -347,8 +463,12 @@ impl Wizard {
             Some(tile)
         });
         if let Some(tile) = from_system.or_else(|| self.clipboard.clone()) {
-            let selected = self.selected;
-            if self.change(|doc| doc.tiles[selected] = tile) {
+            let cells = self.selected_cells();
+            if self.change(|doc| {
+                for selected in cells {
+                    doc.tiles[selected] = tile.clone();
+                }
+            }) {
                 self.status = "Иконка вставлена вместе со слоями.".into();
             }
         }
@@ -453,10 +573,12 @@ impl Wizard {
                     .library_category
                     .min(self.packages.len().saturating_sub(1));
                 self.library_textures.clear();
+                self.library_texture_cache.clear();
             }
             Err(error) => {
                 self.packages.clear();
                 self.library_textures.clear();
+                self.library_texture_cache.clear();
                 self.library_errors = vec![format!("Не удалось открыть папку: {error}")];
             }
         }
@@ -1023,5 +1145,84 @@ mod tests {
         assert_eq!(read_png(&path).unwrap(), wizard.doc.render());
         assert!(wizard.dirty); // Flattening PNG does not save the layered project.
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn mouse_rectangle_and_layer_drag_drop_work_in_real_ui() {
+        let ctx = egui::Context::default();
+        ui::configure(&ctx);
+        let mut w = Wizard::from_document(blank(), None, String::new());
+        w.doc.tiles[0] = vec![
+            Layer::new(
+                "red".into(),
+                image::RgbaImage::from_pixel(32, 32, image::Rgba([255, 0, 0, 255])),
+            ),
+            Layer::new(
+                "blue".into(),
+                image::RgbaImage::from_pixel(32, 32, image::Rgba([0, 0, 255, 255])),
+            ),
+        ];
+        w.sync();
+        let frame = |w: &mut Wizard, events: Vec<egui::Event>| {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(1280.0, 1800.0))),
+                    events,
+                    ..Default::default()
+                },
+                |ui| w.draw_ui(ui),
+            );
+            output.textures_delta.clear();
+            output
+        };
+        let mesh_rect = |output: &egui::FullOutput, id| {
+            output
+                .shapes
+                .iter()
+                .find_map(|s| {
+                    if let egui::Shape::Mesh(mesh) = &s.shape
+                        && mesh.texture_id == id
+                    {
+                        Some(mesh.calc_bounds())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap()
+        };
+        let pointer = |pos, pressed| {
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: Default::default(),
+                },
+            ]
+        };
+        let output = frame(&mut w, vec![]);
+        let source = mesh_rect(&output, w.thumbnails[0].id()).center();
+        let target = mesh_rect(&output, w.thumbnails[1].id()).center() - Vec2::new(0.0, 10.0);
+        frame(&mut w, pointer(source, true));
+        frame(&mut w, vec![egui::Event::PointerMoved(target)]);
+        frame(&mut w, pointer(target, false));
+        assert_eq!(w.doc.tiles[0][1].name, "red");
+        let output = frame(&mut w, vec![]);
+        let source = mesh_rect(&output, w.thumbnails[1].id()).center();
+        let atlas = mesh_rect(&output, w.sheet.as_ref().unwrap().id());
+        let cell = CELL as f32 * w.zoom;
+        let target = atlas.min + Vec2::new(cell * 1.5, cell / 2.0);
+        frame(&mut w, pointer(source, true));
+        frame(&mut w, vec![egui::Event::PointerMoved(target)]);
+        frame(&mut w, pointer(target, false));
+        assert_eq!(w.doc.tiles[1][0].name, "red");
+        assert_eq!(w.doc.tiles[0].len(), 1);
+        let start = atlas.min + Vec2::splat(cell / 2.0);
+        let end = atlas.min + Vec2::splat(cell * 1.5);
+        frame(&mut w, pointer(start, true));
+        frame(&mut w, vec![egui::Event::PointerMoved(end)]);
+        frame(&mut w, pointer(end, false));
+        assert_eq!(w.selected_cells(), vec![0, 1, 16, 17]);
     }
 }

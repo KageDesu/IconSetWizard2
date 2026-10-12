@@ -328,6 +328,10 @@ impl Wizard {
             );
         });
         ui.add_space(6.0);
+        muted(
+            ui,
+            format!("Выбрано ячеек: {}", self.selected_cells().len()),
+        );
         ui.horizontal(|ui| {
             if button(ui, Icon::Copy, "Копировать", true, false)
                 .on_hover_text("Ctrl+C")
@@ -340,6 +344,14 @@ impl Wizard {
                 .clicked()
             {
                 self.paste_icon(None);
+            }
+        });
+        ui.horizontal(|ui| {
+            if ui.button("Экспорт ячеек").clicked() {
+                self.export_selection();
+            }
+            if ui.button("Очистить ячейки").clicked() {
+                self.delete_cells();
             }
         });
         divider(ui);
@@ -375,6 +387,20 @@ impl Wizard {
             });
         });
         let count = self.doc.tiles[self.selected].len();
+        ui.horizontal(|ui| {
+            if ui
+                .add_enabled(count > 0, egui::Button::new("Дубликат слоя"))
+                .clicked()
+            {
+                self.duplicate_layer();
+            }
+            if ui
+                .add_enabled(count > 0, egui::Button::new("Замена цвета"))
+                .clicked()
+            {
+                self.color_open = true;
+            }
+        });
         if count == 0 {
             muted(ui, "Пока пусто. Добавьте слой PNG.");
         }
@@ -384,8 +410,10 @@ impl Wizard {
             .show(ui, |ui| {
                 for index in (0..count).rev() {
                     let layer = &self.doc.tiles[self.selected][index];
-                    let (rect, response) = ui
-                        .allocate_exact_size(Vec2::new(ui.available_width(), 54.0), Sense::click());
+                    let (rect, response) = ui.allocate_exact_size(
+                        Vec2::new(ui.available_width(), 54.0),
+                        Sense::click_and_drag(),
+                    );
                     let selected = self.layer == index;
                     ui.painter().rect(
                         rect,
@@ -442,9 +470,34 @@ impl Wizard {
                         FontId::proportional(10.0),
                         MUTED,
                     );
-                    if response.on_hover_text(&layer.name).clicked() {
+                    if response.drag_started() {
+                        response.dnd_set_drag_payload(editor::LayerDrag {
+                            tile: self.selected,
+                            layer: index,
+                        });
+                    }
+                    let drop = response
+                        .dnd_release_payload::<editor::LayerDrag>()
+                        .map(|p| *p);
+                    if response
+                        .on_hover_text(format!(
+                            "{} · перетащите для смены порядка или в другую ячейку",
+                            layer.name
+                        ))
+                        .clicked()
+                    {
+                        self.commit_draft();
                         self.layer = index;
                         self.draft = draft_for(&self.doc, self.selected, index);
+                    }
+                    if let Some(from) = drop {
+                        let above = ui.ctx().input(|i| {
+                            i.pointer
+                                .latest_pos()
+                                .is_some_and(|p| p.y < rect.center().y)
+                        });
+                        self.move_layer(from, self.selected, index + usize::from(above));
+                        break;
                     }
                 }
             });
@@ -613,6 +666,11 @@ impl Wizard {
         let (rect, _) = ui.allocate_exact_size(Vec2::splat(20.0), Sense::hover());
         icon(ui, rect, Icon::Layers, MUTED);
         muted(ui, "Проект хранит слои.\nPNG — готовая картинка для игры.");
+        ui.checkbox(&mut self.autosave_enabled, "Автосохранение (30 с)");
+        if !self.recovery_candidates.is_empty() && ui.button("Восстановление…").clicked()
+        {
+            self.recovery_open = true;
+        }
         ui.add_enabled_ui(self.png_source.is_some(), |ui| {
             ui.checkbox(&mut self.overwrite_png, "Перезаписывать исходный PNG")
                 .on_hover_text("При экспорте обновлять открытый PNG без диалога выбора файла");
@@ -644,6 +702,11 @@ impl Wizard {
     pub(super) fn draw_ui(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         if ctx.input(|i| i.viewport().close_requested())
+            && !(self.dirty || self.has_pending_draft())
+        {
+            self.clear_recovery();
+        }
+        if ctx.input(|i| i.viewport().close_requested())
             && (self.dirty || self.has_pending_draft())
             && !self.allow_close
         {
@@ -662,6 +725,7 @@ impl Wizard {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                         if ui.button("Закрыть без сохранения").clicked() {
+                            self.clear_recovery();
                             self.allow_close = true;
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
@@ -710,11 +774,14 @@ impl Wizard {
             && !self.confirm_png_save
             && !self.confirm_close
             && !self.library_open
+            && !self.color_open
+            && !self.recovery_open
         {
             let events = ctx.input(|i| i.events.clone());
             let copy_event = events
                 .iter()
                 .any(|event| matches!(event, egui::Event::Copy));
+            let cut_event = events.iter().any(|event| matches!(event, egui::Event::Cut));
             let paste_event = events.iter().find_map(|event| {
                 if let egui::Event::Paste(text) = event {
                     Some(text.as_str())
@@ -722,8 +789,11 @@ impl Wizard {
                     None
                 }
             });
-            if copy_event {
+            if copy_event || cut_event {
                 self.copy_icon(&ctx);
+            }
+            if cut_event {
+                self.delete_cells();
             }
             if let Some(text) = paste_event {
                 self.paste_icon(Some(text));
@@ -735,6 +805,8 @@ impl Wizard {
                 (egui::Key::Y, 3),
                 (egui::Key::C, 4),
                 (egui::Key::V, 5),
+                (egui::Key::X, 6),
+                (egui::Key::A, 7),
             ] {
                 if ctx.input(|i| i.modifiers.command && i.key_pressed(key)) {
                     match action {
@@ -752,9 +824,19 @@ impl Wizard {
                         3 => self.redo(),
                         4 if !copy_event => self.copy_icon(&ctx),
                         5 if paste_event.is_none() => self.paste_icon(None),
+                        6 if !cut_event => {
+                            self.copy_icon(&ctx);
+                            self.delete_cells();
+                        }
+                        7 => {
+                            self.selection = (0..self.doc.tiles.len()).collect();
+                        }
                         _ => {}
                     }
                 }
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::Delete)) {
+                self.delete_cells();
             }
         }
         egui::Panel::top("header")
@@ -889,7 +971,10 @@ impl Wizard {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.heading("Полотно");
-                        muted(ui, "Выберите иконку · индексы от нуля");
+                        muted(
+                            ui,
+                            "Ctrl+клик — группа · Shift+клик / протягивание — прямоугольник",
+                        );
                     });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         egui::ComboBox::from_id_salt("zoom")
@@ -924,7 +1009,8 @@ impl Wizard {
                             COLS as f32 * cell,
                             (self.doc.tiles.len() / COLS) as f32 * cell,
                         );
-                        let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+                        let (rect, response) =
+                            ui.allocate_exact_size(size, Sense::click_and_drag());
                         checker(ui, rect, 8.0);
                         if let Some(texture) = &self.sheet {
                             ui.painter().image(
@@ -979,6 +1065,22 @@ impl Wizard {
                             Stroke::new(2.0, ACCENT),
                             egui::StrokeKind::Inside,
                         );
+                        for index in self.selected_cells() {
+                            let cell_rect = Rect::from_min_size(
+                                rect.min
+                                    + Vec2::new(
+                                        (index % COLS) as f32 * cell,
+                                        (index / COLS) as f32 * cell,
+                                    ),
+                                Vec2::splat(cell),
+                            );
+                            ui.painter().rect_stroke(
+                                cell_rect,
+                                0.0,
+                                Stroke::new(2.0, ACCENT),
+                                egui::StrokeKind::Inside,
+                            );
+                        }
                         if response.clicked()
                             && let Some(pos) = response.interact_pointer_pos()
                         {
@@ -987,10 +1089,60 @@ impl Wizard {
                                 (relative.y / cell) as usize * COLS + (relative.x / cell) as usize;
                             if index < self.doc.tiles.len() {
                                 response.request_focus();
-                                self.selected = index;
-                                self.layer = 0;
-                                self.sync();
+                                let modifiers = ui.ctx().input(|i| i.modifiers);
+                                self.select_cell(index, modifiers.command, modifiers.shift);
                             }
+                        }
+                        let hovered = ui
+                            .ctx()
+                            .input(|i| i.pointer.latest_pos())
+                            .filter(|p| rect.contains(*p))
+                            .map(|pos| {
+                                let relative = pos - rect.min;
+                                (relative.y / cell) as usize * COLS + (relative.x / cell) as usize
+                            })
+                            .filter(|i| *i < self.doc.tiles.len());
+                        if let Some(from) = response.dnd_release_payload::<editor::LayerDrag>()
+                            && let Some(target) = hovered
+                        {
+                            self.move_layer(*from, target, self.doc.tiles[target].len());
+                        }
+                        if response.drag_started()
+                            && egui::DragAndDrop::payload::<editor::LayerDrag>(ui.ctx()).is_none()
+                        {
+                            let origin = ui
+                                .ctx()
+                                .input(|i| i.pointer.press_origin())
+                                .filter(|p| rect.contains(*p))
+                                .map(|p| {
+                                    let p = p - rect.min;
+                                    (p.y / cell) as usize * COLS + (p.x / cell) as usize
+                                });
+                            self.commit_draft();
+                            self.selection_drag = origin;
+                            if let Some(origin) = origin {
+                                self.selection_anchor = origin;
+                            }
+                            self.selection_drag_base = if ui.ctx().input(|i| i.modifiers.command) {
+                                self.selection.clone()
+                            } else {
+                                Default::default()
+                            };
+                        }
+                        if response.dragged()
+                            && let (Some(start), Some(end)) = (self.selection_drag, hovered)
+                        {
+                            self.selection = self
+                                .rectangle(start, end)
+                                .union(&self.selection_drag_base)
+                                .copied()
+                                .collect();
+                            self.selected = end;
+                            self.layer = 0;
+                            self.sync();
+                        }
+                        if response.drag_stopped() {
+                            self.selection_drag = None;
                         }
                         if let Some(pos) = response.hover_pos() {
                             let relative = pos - rect.min;
@@ -1011,6 +1163,9 @@ impl Wizard {
             ctx.request_repaint();
         }
         self.draw_library(&ctx);
+        self.draw_color_replacement(&ctx);
+        self.draw_recovery(&ctx);
+        self.autosave_tick(&ctx);
         self.capture_if_requested(&ctx);
     }
 
@@ -1020,6 +1175,7 @@ impl Wizard {
         }
         let mut open = self.library_open;
         let mut chosen = None;
+        let mut favorite_change = None;
         egui::Window::new("Библиотека иконок")
             .open(&mut open)
             .default_size([780.0, 520.0])
@@ -1032,11 +1188,26 @@ impl Wizard {
                     {
                         self.library_folder = folder;
                         self.load_library();
+                        self.persist_preferences();
                     }
                     if ui.button("Обновить").clicked() {
                         self.load_library();
                     }
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Поиск:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.library_query)
+                            .hint_text("Пакет, описание или номер иконки")
+                            .desired_width(300.0),
+                    );
+                    ui.checkbox(&mut self.library_favorites_only, "Только избранное");
+                    ui.checkbox(&mut self.library_search_all, "Все пакеты");
+                });
+                muted(
+                    ui,
+                    "Звёздочка на миниатюре — добавить или убрать из избранного",
+                );
                 muted(ui, self.library_folder.display().to_string());
                 if !self.library_errors.is_empty() {
                     ui.collapsing(
@@ -1050,6 +1221,10 @@ impl Wizard {
                 }
                 if self.packages.is_empty() {
                     ui.label("В выбранной папке нет доступных пакетов .iwpk.");
+                    return;
+                }
+                if !self.library_query.trim().is_empty() || self.library_favorites_only {
+                    self.draw_library_results(ui, ctx, &mut chosen, &mut favorite_change);
                     return;
                 }
                 divider(ui);
@@ -1127,6 +1302,46 @@ impl Wizard {
                                                 Rect::from_min_max(Pos2::ZERO, Pos2::new(1., 1.)),
                                                 Color32::WHITE,
                                             );
+                                            let key =
+                                                self.favorite_key(self.library_category, index);
+                                            let star_rect = Rect::from_min_size(
+                                                rect.right_top() - Vec2::new(16.0, 0.0),
+                                                Vec2::splat(16.0),
+                                            );
+                                            let starred = self.preferences.favorites.contains(&key);
+                                            ui.painter().rect_filled(
+                                                star_rect,
+                                                3.0,
+                                                Color32::from_black_alpha(180),
+                                            );
+                                            ui.painter().text(
+                                                star_rect.center(),
+                                                Align2::CENTER_CENTER,
+                                                if starred { "★" } else { "☆" },
+                                                FontId::proportional(15.0),
+                                                if starred { Color32::YELLOW } else { TEXT },
+                                            );
+                                            if ui
+                                                .interact(
+                                                    star_rect,
+                                                    egui::Id::new((
+                                                        "library-star",
+                                                        self.library_category,
+                                                        index,
+                                                    )),
+                                                    Sense::click(),
+                                                )
+                                                .on_hover_text("Избранное")
+                                                .clicked()
+                                            {
+                                                favorite_change =
+                                                    Some((self.library_category, index));
+                                            }
+                                            let on_star = ui.ctx().input(|i| {
+                                                i.pointer
+                                                    .latest_pos()
+                                                    .is_some_and(|p| star_rect.contains(p))
+                                            });
                                             if response
                                                 .on_hover_text(format!(
                                                     "{} #{}",
@@ -1134,6 +1349,7 @@ impl Wizard {
                                                     index + 1
                                                 ))
                                                 .clicked()
+                                                && !on_star
                                             {
                                                 chosen = Some((
                                                     format!("{} #{}", package.name, index + 1),
@@ -1151,11 +1367,194 @@ impl Wizard {
                 });
             });
         self.library_open = open;
+        if let Some((category, index)) = favorite_change {
+            self.toggle_favorite(category, index);
+        }
         if let Some((name, image)) = chosen
             && self.insert_image(name, image, false)
         {
             self.status = "Иконка из библиотеки добавлена новым слоем.".into();
             self.library_open = false;
+        }
+    }
+
+    fn draw_library_results(
+        &mut self,
+        ui: &mut egui::Ui,
+        ctx: &egui::Context,
+        chosen: &mut Option<(String, image::RgbaImage)>,
+        favorite: &mut Option<(usize, usize)>,
+    ) {
+        let matches = (0..self.packages.len())
+            .filter(|c| {
+                self.library_search_all
+                    || self.library_favorites_only
+                    || *c == self.library_category
+            })
+            .flat_map(|c| (0..self.packages[c].items.len()).map(move |i| (c, i)))
+            .filter(|(c, i)| self.library_matches(*c, *i))
+            .collect::<Vec<_>>();
+        ui.label(format!("Найдено: {}", matches.len()));
+        let columns = ((ui.available_width() / 64.0) as usize).clamp(1, 12);
+        egui::ScrollArea::vertical()
+            .id_salt("library-filtered")
+            .max_height(360.0)
+            .show(ui, |ui| {
+                egui::Grid::new("library-filtered-grid")
+                    .spacing([8.0, 8.0])
+                    .show(ui, |ui| {
+                        for (number, (category, index)) in matches.iter().copied().enumerate() {
+                            let texture = self
+                                .library_texture_cache
+                                .entry((category, index))
+                                .or_insert_with(|| {
+                                    ctx.load_texture(
+                                        format!("filtered-{category}-{index}"),
+                                        egui::ColorImage::from_rgba_unmultiplied(
+                                            [32, 32],
+                                            self.packages[category].items[index].as_raw(),
+                                        ),
+                                        egui::TextureOptions::NEAREST,
+                                    )
+                                })
+                                .id();
+                            let (rect, response) =
+                                ui.allocate_exact_size(Vec2::splat(48.0), Sense::click());
+                            checker(ui, rect, 6.0);
+                            ui.painter().image(
+                                texture,
+                                rect,
+                                Rect::from_min_max(Pos2::ZERO, Pos2::new(1., 1.)),
+                                Color32::WHITE,
+                            );
+                            let star_rect = Rect::from_min_size(
+                                rect.right_top() - Vec2::new(16.0, 0.0),
+                                Vec2::splat(16.0),
+                            );
+                            let starred = self
+                                .preferences
+                                .favorites
+                                .contains(&self.favorite_key(category, index));
+                            ui.painter().rect_filled(
+                                star_rect,
+                                3.0,
+                                Color32::from_black_alpha(180),
+                            );
+                            ui.painter().text(
+                                star_rect.center(),
+                                Align2::CENTER_CENTER,
+                                if starred { "★" } else { "☆" },
+                                FontId::proportional(15.0),
+                                if starred { Color32::YELLOW } else { TEXT },
+                            );
+                            if ui
+                                .interact(
+                                    star_rect,
+                                    egui::Id::new(("filtered-star", category, index)),
+                                    Sense::click(),
+                                )
+                                .clicked()
+                            {
+                                *favorite = Some((category, index));
+                            }
+                            let on_star = ctx.input(|i| {
+                                i.pointer
+                                    .latest_pos()
+                                    .is_some_and(|p| star_rect.contains(p))
+                            });
+                            if response
+                                .on_hover_text(format!(
+                                    "{} #{}",
+                                    self.packages[category].name,
+                                    index + 1
+                                ))
+                                .clicked()
+                                && !on_star
+                            {
+                                *chosen = Some((
+                                    format!("{} #{}", self.packages[category].name, index + 1),
+                                    self.packages[category].items[index].clone(),
+                                ));
+                            }
+                            if (number + 1).is_multiple_of(columns) {
+                                ui.end_row();
+                            }
+                        }
+                    });
+            });
+    }
+
+    fn draw_color_replacement(&mut self, ctx: &egui::Context) {
+        if !self.color_open {
+            return;
+        }
+        let mut open = true;
+        egui::Window::new("Замена цвета").open(&mut open).resizable(false).show(ctx,|ui| {
+            ui.set_max_width(420.0);
+            ui.horizontal(|ui| {
+                ui.label("Из:");ui.color_edit_button_srgb(&mut self.color_from);
+                ui.label("В:");ui.color_edit_button_srgb(&mut self.color_to);
+            });
+            let palette=self.doc.tiles[self.selected].get(self.layer).map(|layer| {
+                layer.pixels.rgba.as_chunks::<4>().0.iter().filter(|p|p[3]>0).map(|p|[p[0],p[1],p[2]]).collect::<std::collections::BTreeSet<_>>()
+            }).unwrap_or_default();
+            ui.label("Выберите исходный цвет из палитры слоя:");
+            ui.horizontal_wrapped(|ui| {
+                for color in palette.iter().take(128) {
+                    let (rect,response)=ui.allocate_exact_size(Vec2::splat(18.0),Sense::click());
+                    ui.painter().rect_filled(rect,2.0,Color32::from_rgb(color[0],color[1],color[2]));
+                    if response.on_hover_text(format!("RGB {}, {}, {}",color[0],color[1],color[2])).clicked() {self.color_from = *color;}
+                }
+            });
+            ui.add(egui::Slider::new(&mut self.color_tolerance,0..=64).text("Допуск"));
+            ui.checkbox(&mut self.color_all_layers,"Все слои выделенных ячеек");
+            muted(ui,"Без этой опции изменяется только текущий слой. Альфа сохраняется; цвет выбирается до Hue.");
+            let mut preview=self.doc.clone();
+            if let Some(layer)=preview.tiles[self.selected].get_mut(self.layer) {*layer=self.draft.clone();}
+            for (index,layer) in preview.tiles[self.selected].iter_mut().enumerate() {
+                if self.color_all_layers || index==self.layer {Self::recolor_layer(layer,self.color_from,self.color_to,self.color_tolerance);}
+            }
+            let image=preview.render_tile(self.selected);
+            let texture=ctx.load_texture("color-preview",egui::ColorImage::from_rgba_unmultiplied([32,32],image.as_raw()),egui::TextureOptions::NEAREST);
+            ui.label("Предпросмотр результата:");ui.image((texture.id(),Vec2::splat(128.0)));
+            if ui.button("Заменить цвет").clicked() {self.replace_color();self.color_open=false;}
+        });
+        if !open {
+            self.color_open = false;
+        }
+    }
+
+    fn draw_recovery(&mut self, ctx: &egui::Context) {
+        if !self.recovery_open {
+            return;
+        }
+        let mut action = None;
+        egui::Modal::new(egui::Id::new("recover-project")).show(ctx,|ui| {
+            ui.set_max_width(520.0);ui.heading("Найдены автосохранения");
+            ui.label("Можно восстановить проект со слоями и неприменёнными параметрами. Исходные PNG не изменяются.");
+            egui::ScrollArea::vertical().max_height(250.0).show(ui,|ui| {
+                for (index,path) in self.recovery_candidates.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{} · {} ({:.1} MB)",index+1,storage::recovery_description(path),std::fs::metadata(path).map(|m|m.len()).unwrap_or(0) as f64/1048576.0)).on_hover_text(path.display().to_string());
+                        if ui.button("Восстановить").clicked() {action=Some((path.clone(),true));}
+                        if ui.button("Удалить копию").clicked() {action=Some((path.clone(),false));}
+                    });
+                }
+            });
+            if ui.button("Позже").clicked() {self.recovery_open=false;}
+        });
+        if let Some((path, restore)) = action {
+            if restore {
+                if self.may_replace()
+                    && let Err(e) = self.restore_recovery(&path)
+                {
+                    self.status = format!("Ошибка восстановления: {e}");
+                }
+            } else {
+                storage::remove_recovery(&path);
+                self.recovery_candidates.retain(|p| p != &path);
+                self.recovery_open = !self.recovery_candidates.is_empty();
+            }
         }
     }
 
