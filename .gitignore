@@ -1,7 +1,6 @@
 /target/
 /dist/
 *.tmp
-/packages/
 VALIDATION.md
 FEATURE_GAP_ANALYSIS.md
 IconSet.png

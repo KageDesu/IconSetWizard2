@@ -103,10 +103,8 @@ Install **Git** and the latest stable **Rust** toolchain with Cargo using the [o
 
 ### Compile and Run
 
-Replace `YOUR-USERNAME/YOUR-REPOSITORY` with this project's GitHub repository path:
-
 ```sh
-git clone https://github.com/YOUR-USERNAME/YOUR-REPOSITORY.git IconSetWizard2
+git clone https://github.com/KageDesu/IconSetWizard2.git IconSetWizard2
 cd IconSetWizard2
 cargo build --release --locked
 ```
